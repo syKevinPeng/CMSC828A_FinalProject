@@ -1,4 +1,4 @@
-preprocessing:
+preprocessing: &preprocessing_config
   universal_label: &universal_label
     - 'sedentary_sitting_other' 
     # - 'sedentary_sitting_transport' 
@@ -8,9 +8,9 @@ preprocessing:
     # - 'cycling'
   extrasensory_preprocessor:
     in: 
-      dir: ../datasets/extrasensory/
+      dir: datasets/extrasensory/
     out: 
-      dir: ../data/preprocessed/extrasensory/
+      dir: datasets/preprocessed/extrasensory/
       suffix: activities_minutes.csv
 
     labels: [
@@ -38,14 +38,16 @@ preprocessing:
 
 pretrain:
   model_type: "CL" # one of ["CL", "MTL"]
-  label: *universal_label
+  universal_label: *universal_label
+  preprocessing_config: *preprocessing_config
 
 
 # specific experiment config:
 experiment:
   # Data Preprocessing Related Config
-  dataset: ES # one of ["ES", "SOME OTHER DATASET: TBD"]
-  force_preprocess: true # if true, preprocess data again and overwrite existing files
+  dataset: 
+    - ES # one of ["ES", "SOME OTHER DATASET: TBD"]
+  force_preprocess: false # if true, preprocess data again and overwrite existing files
 
   # Training Related Config
   training_epochs: &default_epochs 15

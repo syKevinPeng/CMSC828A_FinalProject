@@ -13,6 +13,8 @@ class ExtrasensoryProcessor():
         
     def preprocess(self): 
         csv_files = glob.glob(f"{self.config['in']['dir']}/*.csv", recursive = True)
+
+        if len(csv_files) == 0: raise Exception(f"No csv file found:{self.config['in']['dir']}")
         all_df = []
         for file in csv_files:
             df = pd.read_csv(file)
@@ -28,10 +30,7 @@ class ExtrasensoryProcessor():
             df.dropna(axis = 0, how = 'any',inplace = True)
 
             # resampling
-            if self.data_orgnization == "mean":
-                df = self.resampling(df)
-            else:
-                raise Exception("Exrtrasensory only support mean resampling")
+            df = self.resampling(df)
             all_df.append(df)
         all_df = pd.concat(all_df)
         return all_df
