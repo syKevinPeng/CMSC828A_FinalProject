@@ -4,7 +4,7 @@
 from tensorflow import keras
 import numpy as np
 import time
-
+import tensorflow as tf
 from utils.inception_utils import save_logs
 from utils.inception_utils import calculate_metrics
 from utils.inception_utils import save_test_duration
@@ -32,7 +32,7 @@ class Classifier_INCEPTION:
             if (verbose == True):
                 self.model.summary()
             self.verbose = verbose
-            self.model.save_weights(self.output_directory + 'model_init.hdf5')
+            self.model.save_weights(self.output_directory / 'model_init.hdf5')
 
     def _inception_module(self, input_tensor, stride=1, activation='linear'):
 
@@ -67,7 +67,7 @@ class Classifier_INCEPTION:
     def _shortcut_layer(self, input_tensor, out_tensor):
         shortcut_y = keras.layers.Conv1D(filters=int(out_tensor.shape[-1]), kernel_size=1,
                                          padding='same', use_bias=False)(input_tensor)
-        shortcut_y = keras.layers.normalization.BatchNormalization()(shortcut_y)
+        shortcut_y = keras.layers.BatchNormalization()(shortcut_y)
 
         x = keras.layers.Add()([shortcut_y, out_tensor])
         x = keras.layers.Activation('relu')(x)
@@ -99,7 +99,7 @@ class Classifier_INCEPTION:
         reduce_lr = keras.callbacks.ReduceLROnPlateau(monitor='loss', factor=0.5, patience=50,
                                                       min_lr=0.0001)
 
-        file_path = self.output_directory + 'best_model.hdf5'
+        file_path = self.output_directory /'best_model.hdf5'
 
         model_checkpoint = keras.callbacks.ModelCheckpoint(filepath=file_path, monitor='loss',
                                                            save_best_only=True)
@@ -109,7 +109,7 @@ class Classifier_INCEPTION:
         return model
 
     def fit(self, x_train, y_train, x_val, y_val, y_true, plot_test_acc=False):
-        if len(keras.backend.tensorflow_backend._get_available_gpus()) == 0:
+        if not tf.test.is_built_with_cuda():
             print('error no gpu')
             exit()
         # x_val and y_val are only used to monitor the test loss and NOT for training

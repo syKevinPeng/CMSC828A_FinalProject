@@ -61,5 +61,6 @@ class Dataloader():
         if model_type == "CL": # output dataset per label
             if label is None: raise ValueError("Please specify the label")
             return self.datasets[['x', 'y', 'z']], self.datasets[label]
+            # return tf.data.Dataset.from_tensor_slices((self.datasets[['x', 'y', 'z']], self.datasets[label]))
         elif model_type == "MTL": # output all 
             return self.datasets[['x', 'y', 'z']], self.datasets

@@ -14,14 +14,14 @@ import os
 import operator
 import utils
 
-from utils.inception_constants import UNIVARIATE_DATASET_NAMES as DATASET_NAMES
-from utils.inception_constants import UNIVARIATE_ARCHIVE_NAMES  as ARCHIVE_NAMES
+# from inception_constants import UNIVARIATE_DATASET_NAMES as DATASET_NAMES
+# from inception_constants import UNIVARIATE_ARCHIVE_NAMES  as ARCHIVE_NAMES
 
 from sklearn.metrics import accuracy_score
 from sklearn.metrics import precision_score
 from sklearn.metrics import recall_score
 from sklearn.preprocessing import LabelEncoder
-from utils import get_logger
+import utils
 
 
 
@@ -68,47 +68,47 @@ def read_dataset(root_dir, archive_name, dataset_name):
     return datasets_dict
 
 
-def read_all_datasets(root_dir, archive_name):
-    datasets_dict = {}
+# def read_all_datasets(root_dir, archive_name):
+#     datasets_dict = {}
 
-    dataset_names_to_sort = []
+#     dataset_names_to_sort = []
 
-    if archive_name == 'TSC':
-        for dataset_name in DATASET_NAMES:
-            root_dir_dataset = root_dir + '/archives/' + archive_name + '/' + dataset_name + '/'
-            file_name = root_dir_dataset + dataset_name
-            x_train, y_train = readucr(file_name + '_TRAIN')
-            x_test, y_test = readucr(file_name + '_TEST')
+#     if archive_name == 'TSC':
+#         for dataset_name in DATASET_NAMES:
+#             root_dir_dataset = root_dir + '/archives/' + archive_name + '/' + dataset_name + '/'
+#             file_name = root_dir_dataset + dataset_name
+#             x_train, y_train = readucr(file_name + '_TRAIN')
+#             x_test, y_test = readucr(file_name + '_TEST')
 
-            datasets_dict[dataset_name] = (x_train.copy(), y_train.copy(), x_test.copy(),
-                                           y_test.copy())
+#             datasets_dict[dataset_name] = (x_train.copy(), y_train.copy(), x_test.copy(),
+#                                            y_test.copy())
 
-            dataset_names_to_sort.append((dataset_name, len(x_train)))
+#             dataset_names_to_sort.append((dataset_name, len(x_train)))
 
-        dataset_names_to_sort.sort(key=operator.itemgetter(1))
+#         dataset_names_to_sort.sort(key=operator.itemgetter(1))
 
-        for i in range(len(DATASET_NAMES)):
-            DATASET_NAMES[i] = dataset_names_to_sort[i][0]
+#         for i in range(len(DATASET_NAMES)):
+#             DATASET_NAMES[i] = dataset_names_to_sort[i][0]
 
-    elif archive_name == 'InlineSkateXPs':
+#     elif archive_name == 'InlineSkateXPs':
 
-        for dataset_name in utils.constants.dataset_names_for_archive[archive_name]:
-            root_dir_dataset = root_dir + '/archives/' + archive_name + '/' + dataset_name + '/'
+#         for dataset_name in utils.constants.dataset_names_for_archive[archive_name]:
+#             root_dir_dataset = root_dir + '/archives/' + archive_name + '/' + dataset_name + '/'
 
-            x_train = np.load(root_dir_dataset + 'x_train.npy')
-            y_train = np.load(root_dir_dataset + 'y_train.npy')
-            x_test = np.load(root_dir_dataset + 'x_test.npy')
-            y_test = np.load(root_dir_dataset + 'y_test.npy')
+#             x_train = np.load(root_dir_dataset + 'x_train.npy')
+#             y_train = np.load(root_dir_dataset + 'y_train.npy')
+#             x_test = np.load(root_dir_dataset + 'x_test.npy')
+#             y_test = np.load(root_dir_dataset + 'y_test.npy')
 
-            datasets_dict[dataset_name] = (x_train.copy(), y_train.copy(), x_test.copy(),
-                                           y_test.copy())
-    elif archive_name == 'SITS':
-        return read_sits_xps(root_dir)
-    else:
-        print('error in archive name')
-        exit()
+#             datasets_dict[dataset_name] = (x_train.copy(), y_train.copy(), x_test.copy(),
+#                                            y_test.copy())
+#     elif archive_name == 'SITS':
+#         return read_sits_xps(root_dir)
+#     else:
+#         print('error in archive name')
+#         exit()
 
-    return datasets_dict
+#     return datasets_dict
 
 
 def calculate_metrics(y_true, y_pred, duration):
@@ -148,35 +148,35 @@ def transform_labels(y_train, y_test):
     return new_y_train, new_y_test
 
 
-def generate_results_csv(output_file_name, root_dir, clfs):
-    res = pd.DataFrame(data=np.zeros((0, 8), dtype=np.float), index=[],
-                       columns=['classifier_name', 'archive_name', 'dataset_name', 'iteration',
-                                'precision', 'accuracy', 'recall', 'duration'])
-    for archive_name in ARCHIVE_NAMES:
-        datasets_dict = read_all_datasets(root_dir, archive_name)
-        for classifier_name in clfs:
-            durr = 0.0
+# def generate_results_csv(output_file_name, root_dir, clfs):
+#     res = pd.DataFrame(data=np.zeros((0, 8), dtype=np.float), index=[],
+#                        columns=['classifier_name', 'archive_name', 'dataset_name', 'iteration',
+#                                 'precision', 'accuracy', 'recall', 'duration'])
+#     for archive_name in ARCHIVE_NAMES:
+#         datasets_dict = read_all_datasets(root_dir, archive_name)
+#         for classifier_name in clfs:
+#             durr = 0.0
 
-            curr_archive_name = archive_name
-            for dataset_name in datasets_dict.keys():
-                output_dir = root_dir + '/results/' + classifier_name + '/' \
-                             + curr_archive_name + '/' + dataset_name + '/' + 'df_metrics.csv'
-                print(output_dir)
-                if not os.path.exists(output_dir):
-                    continue
-                df_metrics = pd.read_csv(output_dir)
-                df_metrics['classifier_name'] = classifier_name
-                df_metrics['archive_name'] = archive_name
-                df_metrics['dataset_name'] = dataset_name
-                df_metrics['iteration'] = 0
-                res = pd.concat((res, df_metrics), axis=0, sort=False)
-                durr += df_metrics['duration'][0]
+#             curr_archive_name = archive_name
+#             for dataset_name in datasets_dict.keys():
+#                 output_dir = root_dir + '/results/' + classifier_name + '/' \
+#                              + curr_archive_name + '/' + dataset_name + '/' + 'df_metrics.csv'
+#                 print(output_dir)
+#                 if not os.path.exists(output_dir):
+#                     continue
+#                 df_metrics = pd.read_csv(output_dir)
+#                 df_metrics['classifier_name'] = classifier_name
+#                 df_metrics['archive_name'] = archive_name
+#                 df_metrics['dataset_name'] = dataset_name
+#                 df_metrics['iteration'] = 0
+#                 res = pd.concat((res, df_metrics), axis=0, sort=False)
+#                 durr += df_metrics['duration'][0]
 
-    res.to_csv(root_dir + output_file_name, index=False)
+#     res.to_csv(root_dir + output_file_name, index=False)
 
-    res = res.loc[res['classifier_name'].isin(clfs)]
+#     res = res.loc[res['classifier_name'].isin(clfs)]
 
-    return res
+#     return res
 
 
 def plot_epochs_metric(hist, file_name, metric='loss'):
@@ -193,7 +193,7 @@ def plot_epochs_metric(hist, file_name, metric='loss'):
 
 def save_logs(output_directory, hist, y_pred, y_true, duration,
               lr=True, plot_test_acc=True):
-    log = get_logger("Training Result")
+    log = utils.get_logger("Training Result")
     hist_df = pd.DataFrame(hist.history)
     hist_df.to_csv(output_directory + 'history.csv', index=False)
 
