@@ -21,6 +21,9 @@ from sklearn.metrics import accuracy_score
 from sklearn.metrics import precision_score
 from sklearn.metrics import recall_score
 from sklearn.preprocessing import LabelEncoder
+from utils import get_logger
+
+
 
 
 def check_if_file_exits(file_name):
@@ -190,6 +193,7 @@ def plot_epochs_metric(hist, file_name, metric='loss'):
 
 def save_logs(output_directory, hist, y_pred, y_true, duration,
               lr=True, plot_test_acc=True):
+    log = get_logger("Training Result")
     hist_df = pd.DataFrame(hist.history)
     hist_df.to_csv(output_directory + 'history.csv', index=False)
 
@@ -214,7 +218,7 @@ def save_logs(output_directory, hist, y_pred, y_true, duration,
     df_best_model['best_model_nb_epoch'] = index_best_model
 
     df_best_model.to_csv(output_directory + 'df_best_model.csv', index=False)
-
+    log.info(f'training logs:\n{df_best_model}')
     if plot_test_acc:
         # plot losses
         plot_epochs_metric(hist, output_directory + 'epochs_loss.png')

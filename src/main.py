@@ -20,7 +20,7 @@ def main():
     log.info(f"==== Experiment Config ====\n {config['experiment']}")
 
     if args.train:
-        log.info(f"==== Training Start ====")
+        log.info(f"==== Training Phase ====")
         start_time = time.time()
         config["pretrain"]["start_time"] = start_time
         trainer = pretrain.Trainer(config["experiment"], config["pretrain"])

@@ -41,6 +41,9 @@ pretrain:
   universal_label: *universal_label
   preprocessing_config: *preprocessing_config
 
+  # Model Related Config
+  input_shape = 3 # number of input features: x,y,z
+
 
 # specific experiment config:
 experiment:
@@ -51,7 +54,7 @@ experiment:
 
   # Training Related Config
   training_epochs: &default_epochs 15
-  default_train_folder: &default_training_folder_save "../checkpoints"
-
+  output_directory: "./checkpoints"
+  batch_size: 32
 
 
