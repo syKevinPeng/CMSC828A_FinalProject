@@ -8,7 +8,7 @@ import tensorflow as tf
 from utils.inception_utils import save_logs
 from utils.inception_utils import calculate_metrics
 from utils.inception_utils import save_test_duration
-
+from utils.utils import TrainingCallback
 
 class Classifier_INCEPTION:
 
@@ -103,8 +103,8 @@ class Classifier_INCEPTION:
 
         model_checkpoint = keras.callbacks.ModelCheckpoint(filepath=file_path, monitor='loss',
                                                            save_best_only=True)
-
-        self.callbacks = [reduce_lr, model_checkpoint]
+        my_callback = TrainingCallback("Training")
+        self.callbacks = [reduce_lr, model_checkpoint, ]
 
         return model
 

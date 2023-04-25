@@ -38,13 +38,13 @@ class Trainer:
             X_test = X_test.reshape((X_test.shape[0], X_test.shape[1], 1))
         input_shape =X_train.shape[1:]
         model = inception.Classifier_INCEPTION(output_directory, input_shape, nb_classes,
-                                                                verbose=False, 
+                                                                verbose=True, 
                                                                 build=True, 
                                                                 batch_size=batch_size,
                                                                 nb_epochs = nb_epochs,
                                                                 use_bottleneck = False)
         self.logger.info("---- Start training ----") 
-        model.fit(X_train, X_test, y_train, y_test, y_true)
+        model.fit(X_train, y_train, X_test, y_test, y_true)
         self.logger.info("---- End training ----")
 
 
