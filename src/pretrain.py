@@ -19,7 +19,7 @@ class Trainer:
         X, y = dataloader.load_pretrain_data(label = all_labels, model_type = self.pretrain_config["model_type"])
         # convert to numpy array
         X = X.to_numpy()
-        y = y.to_numpy()
+        y = y.to_numpy()W
         # split data
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=10, random_state=42)
         # convert one-hot to label

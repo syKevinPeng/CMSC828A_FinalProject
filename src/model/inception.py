@@ -1,6 +1,7 @@
 # Modified based on https://github.com/hfawaz/InceptionTime/blob/master/classifiers/inception.py
 
 # resnet model
+from sklearn.metrics import f1_score
 from tensorflow import keras
 import numpy as np
 import time
@@ -9,6 +10,7 @@ from utils.inception_utils import save_logs
 from utils.inception_utils import calculate_metrics
 from utils.inception_utils import save_test_duration
 from utils.utils import TrainingCallback
+import tensorflow_addons as tfa
 
 class Classifier_INCEPTION:
 
@@ -92,9 +94,9 @@ class Classifier_INCEPTION:
         output_layer = keras.layers.Dense(nb_classes, activation='softmax')(gap_layer)
 
         model = keras.models.Model(inputs=input_layer, outputs=output_layer)
-
+        f1_matric = tfa.metrics.F1Score(num_classes=nb_classes, average='macro', name='f1_score')
         model.compile(loss='categorical_crossentropy', optimizer=keras.optimizers.Adam(),
-                      metrics=['accuracy'])
+                      metrics=['accuracy', f1_matric])
 
         reduce_lr = keras.callbacks.ReduceLROnPlateau(monitor='loss', factor=0.5, patience=50,
                                                       min_lr=0.0001)
@@ -104,7 +106,7 @@ class Classifier_INCEPTION:
         model_checkpoint = keras.callbacks.ModelCheckpoint(filepath=file_path, monitor='loss',
                                                            save_best_only=True)
         my_callback = TrainingCallback("Training")
-        self.callbacks = [reduce_lr, model_checkpoint, ]
+        self.callbacks = [reduce_lr, model_checkpoint, my_callback]
 
         return model
 

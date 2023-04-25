@@ -26,8 +26,8 @@ class TrainingCallback(keras.callbacks.Callback):
         self.logger = get_logger(name)
 
     def on_epoch_end(self, epoch, logs=None):
-        self.logger.info(f"Epoch {epoch} - loss: {logs['loss']} - acc: {logs['acc']}")
+        self.logger.info(f"Epoch {epoch} - loss: {logs['loss']} - acc: {logs['accuracy']} - F1: {logs['f1_score']}")
 
-    def on_train_end(self, logs=None):
-        self.logger.info(f"Training finished. Time elapsed: {logs['time']}")
+    # def on_train_end(self, logs=None):
+    #     self.logger.info(f"Training finished. Time elapsed: {logs['time']}")
 
