@@ -95,16 +95,22 @@ class Classifier_INCEPTION:
 
         model = keras.models.Model(inputs=input_layer, outputs=output_layer)
         f1_matric = tfa.metrics.F1Score(num_classes=nb_classes, average='macro', name='f1_score')
+        metrics = [
+            tf.keras.metrics.Precision(name='precision'),
+            tf.keras.metrics.Recall(name='recall'),
+            tf.keras.metrics.BinaryAccuracy(name="accuracy"),
+            f1_matric
+        ]
         model.compile(loss='categorical_crossentropy', optimizer=keras.optimizers.Adam(),
-                      metrics=['accuracy', f1_matric])
+                      metrics=metrics)
 
         reduce_lr = keras.callbacks.ReduceLROnPlateau(monitor='loss', factor=0.5, patience=50,
                                                       min_lr=0.0001)
-
-        file_path = self.output_directory /'best_model.hdf5'
+        weight_format = 'epoch-{epoch:02d}-val_acc-{val_accuracy:.4f}-train_acc-{accuracy:.4f}-precision-{precision:.4f}-recall-{recall:.4f}.h5'
+        file_path = self.output_directory / weight_format
 
         model_checkpoint = keras.callbacks.ModelCheckpoint(filepath=file_path, monitor='loss',
-                                                           save_best_only=True)
+                                                           save_best_only=False)
         my_callback = TrainingCallback("Training")
         self.callbacks = [reduce_lr, model_checkpoint, my_callback]
 
