@@ -21,7 +21,8 @@ class Dataloader():
         self.preprocess_config = pretrain_config["preprocessing_config"]
         self.experiment_config = experiment_config
         self.dataset_list = self.experiment_config["dataset"]
-        self.logger = get_logger("Dataloader")
+        self.output_dir =Path(self.experiment_config["output_directory"])/self.experiment_config['exp_name']
+        self.logger = get_logger( self.output_dir, "Dataloader")
         self.datasets = self.prepare_dataset()
     
     def prepare_dataset(self):

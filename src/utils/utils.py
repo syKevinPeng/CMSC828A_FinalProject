@@ -2,11 +2,13 @@ import logging
 from tensorflow import keras
 from pathlib import Path
 
-def get_logger(name,output_dir, logname="running.log"):
+def get_logger(output_dir, name,logname="running.log"):
     # check if output_dir is a PAth object
     if not isinstance(output_dir, Path):
         output_dir = Path(output_dir)
     logname = output_dir/logname
+    if not output_dir.is_dir():
+        output_dir.mkdir(parents=True, exist_ok=True)
     assert len(name) <= 12, "name should be less than 12 characters"
     formatter = logging.Formatter(
         f"%(asctime)s {name:12} %(levelname)s\t%(message)s"

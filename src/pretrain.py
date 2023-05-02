@@ -26,9 +26,9 @@ class Trainer:
         # convert one-hot to label
         y_true = np.argmax(y_test, axis=1)
         # TODO: Split data into balanced train and validation
-        if not self.output_directory.is_dir():
-            self.logger.warning(f"Parent directory {self.output_directory} not found. Creating directory")
-            self.output_directory.mkdir(parents=True, exist_ok=True)
+        if not self.output_dir.is_dir():
+            self.logger.warning(f"Parent directory {self.output_dir} not found. Creating directory")
+            self.output_dir.mkdir(parents=True, exist_ok=True)
         nb_classes = len(all_labels)
         batch_size = self.experiment_config["batch_size"]
         nb_epochs = self.experiment_config["training_epochs"]
@@ -37,7 +37,7 @@ class Trainer:
             X_train = X_train.reshape((X_train.shape[0], X_train.shape[1], 1))
             X_test = X_test.reshape((X_test.shape[0], X_test.shape[1], 1))
         input_shape =X_train.shape[1:]
-        model = inception.Classifier_INCEPTION(self.output_directory, input_shape, nb_classes,
+        model = inception.Classifier_INCEPTION(self.output_dir, input_shape, nb_classes,
                                                                 verbose=False, 
                                                                 build=True, 
                                                                 batch_size=batch_size,
