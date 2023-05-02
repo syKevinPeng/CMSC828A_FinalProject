@@ -45,6 +45,8 @@ pretrain:
 
 # specific experiment config:
 experiment:
+  # experiment prefix/name will be will append to the output dir
+  exp_name: "baseline"
   # Data Preprocessing Related Config
   dataset: 
     - ES # one of ["ES", "SOME OTHER DATASET: TBD"]

@@ -25,7 +25,7 @@ class Trainer:
         # convert one-hot to label
         y_true = np.argmax(y_test, axis=1)
         # TODO: Split data into balanced train and validation
-        output_directory = pathlib.Path(self.experiment_config["output_directory"])
+        output_directory = pathlib.Path(self.experiment_config["output_directory"])/self.experiment_config['exp_name']
         if not output_directory.is_dir():
             self.logger.warning(f"Parent directory {output_directory} not found. Creating directory")
             output_directory.mkdir(parents=True, exist_ok=True)
