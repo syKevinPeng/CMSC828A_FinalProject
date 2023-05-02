@@ -118,8 +118,7 @@ class Classifier_INCEPTION:
 
     def fit(self, x_train, y_train, x_val, y_val, y_true, plot_test_acc=False):
         if not tf.test.is_built_with_cuda():
-            print('error no gpu')
-            exit()
+            raise Exception('error no gpu')
         # x_val and y_val are only used to monitor the test loss and NOT for training
 
         if self.batch_size is None:
@@ -129,14 +128,14 @@ class Classifier_INCEPTION:
 
         start_time = time.time()
 
-        if plot_test_acc:
+        # if plot_test_acc:
 
-            hist = self.model.fit(x_train, y_train, batch_size=mini_batch_size, epochs=self.nb_epochs,
+        hist = self.model.fit(x_train, y_train, batch_size=mini_batch_size, epochs=self.nb_epochs,
                                   verbose=self.verbose, validation_data=(x_val, y_val), callbacks=self.callbacks)
-        else:
+        # else:
 
-            hist = self.model.fit(x_train, y_train, batch_size=mini_batch_size, epochs=self.nb_epochs,
-                                  verbose=self.verbose, callbacks=self.callbacks)
+        #     hist = self.model.fit(x_train, y_train, batch_size=mini_batch_size, epochs=self.nb_epochs,
+        #                           verbose=self.verbose, callbacks=self.callbacks)
 
         duration = time.time() - start_time
 
