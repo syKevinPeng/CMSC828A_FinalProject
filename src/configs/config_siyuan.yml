@@ -53,6 +53,6 @@ experiment:
   # Training Related Config
   training_epochs: &default_epochs 15
   output_directory: "./checkpoints"
-  batch_size: 32
+  batch_size: 16
 
 
