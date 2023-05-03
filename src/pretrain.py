@@ -1,7 +1,6 @@
 import pathlib, datetime
 from dataloader import Dataloader
 from model import inception
-from sklearn.model_selection import train_test_split
 from utils.utils import get_logger
 import numpy as np
 
@@ -33,12 +32,9 @@ class Trainer:
         # load data
         dataloader = Dataloader(self.pretrain_config, self.experiment_config)
         self.logger.info(f"Loading data ...")
-        X, y = dataloader.load_pretrain_data(label = all_labels, model_type = self.model_type)
-        # split data
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=10, random_state=42)
+        X_train, y_train, X_test, y_test = dataloader.load_pretrain_data(label = all_labels, model_type = "baseline")
         # convert one-hot to label
         y_true = np.argmax(y_test, axis=1)
-        # TODO: Split data into balanced train and validation
         if not self.output_dir.is_dir():
             self.logger.warning(f"Parent directory {self.output_dir} not found. Creating directory")
             self.output_dir.mkdir(parents=True, exist_ok=True)
@@ -72,9 +68,8 @@ class Trainer:
         seen_label = np.append(seen_label, ['sedentary_sitting_other', 'sedentary_lying'])
         # get train data for the first two labels
         self.logger.info(f"Loading data of label sedentary_sitting_other and sedentary_lying ...")
-        X, y = dataloader.load_pretrain_data(label = seen_label, model_type = self.model_type)
-        # split data
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=10, random_state=42)
+        X_train, y_train, X_test, y_test = dataloader.load_pretrain_data(label = seen_label, model_type = 'cl')
+       
         # convert one-hot to label
         y_true = np.argmax(y_test, axis=1)
         if not self.output_dir.is_dir():
@@ -110,14 +105,14 @@ class Trainer:
             model.load_model_from_weights(weights_path)
             # get train data for the seen labels
             self.logger.info(f"Loading data of label {seen_label} ...")
-            X_new, y_new = dataloader.load_pretrain_data(label = seen_label, model_type = self.model_type)
+            X_train, y_train, X_test, y_test= dataloader.load_pretrain_data(label = seen_label, model_type = self.model_type)
             X_reserved, y_reserved = dataloader.load_reserved_data(label = seen_label)
             # combine new data with previous data
-            X = np.concatenate((X_new, X_reserved), axis=0)
-            y = np.concatenate((y_new, y_reserved), axis=0)
+            X_train = np.concatenate((X_train, X_reserved), axis=0)
+            y_train = np.concatenate((y_train, y_reserved), axis=0)
 
             # split data
-            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=10, random_state=42)
+            # X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=10, random_state=42)
             # convert one-hot to label
             y_true = np.argmax(y_test, axis=1)
             nb_classes = len(seen_label)

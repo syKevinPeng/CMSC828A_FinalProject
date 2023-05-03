@@ -54,7 +54,8 @@ experiment:
   # Training Related Config
   training_epochs: &default_epochs 15
   output_directory: "./checkpoints"
-  batch_size: 1
+  batch_size: 8
+  valid_raio: 0.1 # the portion of data to be used for validation
   verbose: true # whether to explicitly print out training progress
 
   model_type: "CL" # one of ['baseline',"CL", "MTL"]

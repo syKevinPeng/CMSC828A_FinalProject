@@ -236,17 +236,19 @@ def herd_selection(df:pd.DataFrame, output_dir:Path, logger=None):
         label_df = label_df[label_df[label]==True].iloc[:N] # store positive samples
         label_df = label_df.drop(columns=['distance'])
         # reset index
-        label_df = label_df.reset_index(drop=True)
+        # label_df = label_df.reset_index(drop=True)
         # update the df
         reserved_samples[label] = label_df
         label_col = label_df.loc[:,[label]].to_numpy()
         if False in label_col: raise Exception('label column should only contain True')
     # concat all the dataframes
+    reserved_index = np.concatenate([df.index for df in reserved_samples.values()], axis=0)
     reserved_df = pd.concat(reserved_samples.values(), ignore_index=True)
     # save the df to csv
     reserved_df.to_csv(output_dir/'herd_samples.csv', index=False)
     logger.info(f'herd select data is saved to {output_dir}/herd_samples.csv')
     logger.info('------ Herd Selection Done ------')
+    return reserved_df, reserved_index
 
 
 if __name__ == "__main__":

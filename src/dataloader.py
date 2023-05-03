@@ -10,11 +10,10 @@ from preprocess import extrasensory
 from pathlib import Path
 import pandas as pd
 import numpy as np
-import yaml
 from utils.utils import get_logger
 from pathlib import Path
-from utils.utils import get_logger
-
+# set random seed
+np.random.seed(123)
 
 class Dataloader():
     def __init__(self, pretrain_config, experiment_config) -> None:
@@ -26,6 +25,7 @@ class Dataloader():
         self.train_type = self.experiment_config['model_type']
         self.datasets = self.prepare_dataset()
         self.universal_label = self.experiment_config['universal_label']
+        self.valid_ratio = self.experiment_config['valid_ratio']
     
     def prepare_dataset(self):
         all_dataset = []
@@ -36,11 +36,11 @@ class Dataloader():
                 if not (preprocessed_file).is_file():
                     self.logger.info("Extrasensory not found. Preprocessing")
                     es_df = self.preprocess_es(save_df = True, dir = preprocessed_file)
-                    if self.train_type == 'CL': self.prepare_hear_selection_data(es_df)
+                    if self.train_type == 'CL': self.prepare_herd_selection_data(es_df)
                 elif self.experiment_config["force_preprocess"]:
                     self.logger.warning("Extrasensory found but force_preprocess is set to True. Preprocessing")
                     es_df = self.preprocess_es(save_df = True, dir = preprocessed_file)
-                    if self.train_type == 'CL': self.prepare_hear_selection_data(es_df)
+                    if self.train_type == 'CL': self.prepare_herd_selection_data(es_df)
                 else:
                     self.logger.info("Extrasensory found. Loading")
                     es_df = pd.read_csv(preprocessed_file)
@@ -62,16 +62,15 @@ class Dataloader():
         return es_df
     
     def load_pretrain_data(self, model_type, label = None):
-        # define sensor to train
-        if model_type == "CL": # output dataset per label
-            if label is None: raise ValueError("Please specify the label")
-            # convert dataframe to numpy
-            feature = self.datasets[['x', 'y', 'z']].to_numpy()
-            labels = self.datasets[label].to_numpy()
-            return feature, labels
-            # return tf.data.Dataset.from_tensor_slices((self.datasets[['x', 'y', 'z']], self.datasets[label]))
+        if model_type == 'baseline':
+            x_train, y_train, x_valid, y_valid = self.prepare_data_split()
+            return x_train[label].to_numpy(), y_train[label].to_numpy(), x_valid[label].to_numpy(), y_valid[label].to_numpy()
+        if model_type == "cl": # output dataset per label
+            x_train, y_train, x_valid, y_valid = self.prepare_data_split_with_herd()
+            return x_train[label].to_numpy(), y_train[label].to_numpy(), x_valid[label].to_numpy(), y_valid[label].to_numpy()
         elif model_type == "MTL": # output all 
-            return self.datasets[['x', 'y', 'z']], self.datasets
+            x_train, y_train, x_valid, y_valid = self.prepare_data_split()
+            return x_train[label].to_numpy(), y_train.to_numpy(), x_valid.to_numpy(), y_valid[label].to_numpy()
     
     # read the csv reserved data
     def load_reserved_data(self, labels):
@@ -83,6 +82,47 @@ class Dataloader():
 
     
     # get herd selection data
-    def prepare_hear_selection_data(self, es_df):
+    def prepare_herd_selection_data(self):
         output_dir = Path(self.preprocess_config["extrasensory_preprocessor"]["out"]['dir'])/'herd_samples.csv'
-        extrasensory.herd_selection(es_df, output_dir, logger = self.logger)
+        reserved_df, reserved_index = extrasensory.herd_selection(self.datasets, output_dir, logger = self.logger)
+        return reserved_df, reserved_index
+
+    # get train and valid data. We don't selelct reserved data for validation 
+    def prepare_data_split_with_herd(self, reserved_index):
+        # remove the reserved data with index
+        es_df = self.datasets.drop(reserved_index)
+        # for each universal label, select 10% of the data: 5% positive, 5% negative
+        valid_index = []
+        for label in self.universal_label:
+            label_index = es_df[es_df[label] == 1].sample(frac=self.valid_ratio/2).index
+            valid_index.extend(label_index)
+            label_index = es_df[es_df[label] == 0].sample(frac=self.valid_ratio/2).index
+            valid_index.extend(label_index)
+        valid_df = es_df.loc[valid_index]
+        # remove the valid index from the dataset
+        train_df = es_df.drop(valid_index)
+        x_train = train_df[['x', 'y', 'z']]
+        y_train = train_df[self.universal_label]
+        x_valid = valid_df[['x', 'y', 'z']]
+        y_valid = valid_df[self.universal_label]
+        return x_train, y_train, x_valid, y_valid
+    
+    # get train and valid data without herd selection
+    def prepare_data_split(self):
+        # for each universal label, select 10% of the data: 5% positive, 5% negative
+        valid_index = []
+        for label in self.universal_label:
+            label_index = self.datasets[self.datasets[label] == 1].sample(frac=self.valid_ratio/2).index
+            valid_index.extend(label_index)
+            label_index = self.datasets[self.datasets[label] == 0].sample(frac=self.valid_ratio/2).index
+            valid_index.extend(label_index)
+        valid_df = self.datasets.loc[valid_index]
+        # remove the valid index from the dataset
+        train_df = self.datasets.drop(valid_index)
+        x_train = train_df[['x', 'y', 'z']]
+        y_train = train_df[self.universal_label]
+        x_valid = valid_df[['x', 'y', 'z']]
+        y_valid = valid_df[self.universal_label]
+        return x_train, y_train, x_valid, y_valid
+
+
