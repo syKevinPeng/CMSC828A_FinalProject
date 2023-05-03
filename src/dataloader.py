@@ -25,6 +25,7 @@ class Dataloader():
         self.logger = get_logger( self.output_dir, "Dataloader")
         self.train_type = self.experiment_config['model_type']
         self.datasets = self.prepare_dataset()
+        self.universal_label = self.experiment_config['universal_label']
     
     def prepare_dataset(self):
         all_dataset = []
@@ -73,10 +74,12 @@ class Dataloader():
             return self.datasets[['x', 'y', 'z']], self.datasets
     
     # read the csv reserved data
-    def load_reserved_data(self):
+    def load_reserved_data(self, labels):
         file_dir = Path(self.preprocess_config["extrasensory_preprocessor"]["out"]['dir'])/f"reserved_es.csv"
         if not file_dir.is_file(): raise ValueError(f"Reserved data: {file_dir} not found")
-        return pd.read_csv(file_dir)
+        feature = self.datasets[['x', 'y', 'z']].to_numpy()
+        labels = self.datasets[labels].to_numpy()
+        return feature, labels
 
     
     # get herd selection data

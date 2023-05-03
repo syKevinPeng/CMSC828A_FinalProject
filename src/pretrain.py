@@ -110,7 +110,12 @@ class Trainer:
             model.load_model_from_weights(weights_path)
             # get train data for the seen labels
             self.logger.info(f"Loading data of label {seen_label} ...")
-            X, y = dataloader.load_pretrain_data(label = seen_label, model_type = self.model_type)
+            X_new, y_new = dataloader.load_pretrain_data(label = seen_label, model_type = self.model_type)
+            X_reserved, y_reserved = dataloader.load_reserved_data(label = seen_label)
+            # combine new data with previous data
+            X = np.concatenate((X_new, X_reserved), axis=0)
+            y = np.concatenate((y_new, y_reserved), axis=0)
+
             # split data
             X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=10, random_state=42)
             # convert one-hot to label
