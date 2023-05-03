@@ -212,9 +212,10 @@ def herd_selection(df:pd.DataFrame, output_dir:Path, logger=None):
     # select a fix number of samples that are closest to the centroid of each old class
     # NUMBER OF SAMPLES TO SELECT
     N = 200 
-
+    logger.info('------ Herd Selection ------')
+    logger.info(f'number of reserverd samples for each class to reserve: {N}')
     classes = df.columns[7:].to_numpy()
-    print(f'all classes: {classes}')
+    logger.info(f'total number of class: {len(classes)}')
     reserved_samples = {}
     for label in classes:
         # select all rows with the columns=label is true
@@ -238,6 +239,8 @@ def herd_selection(df:pd.DataFrame, output_dir:Path, logger=None):
     reserved_df = pd.concat(reserved_samples.values(), ignore_index=True)
     # save the df to csv
     reserved_df.to_csv(output_dir/'herd_samples.csv', index=False)
+    logger.info(f'herd select data is saved to {output_dir}/herd_samples.csv')
+    logger.info('------ Herd Selection Done ------')
 
 
 if __name__ == "__main__":

@@ -17,7 +17,7 @@ class Trainer:
         dataloader = Dataloader(self.pretrain_config, self.experiment_config)
         all_labels = self.pretrain_config['universal_label']
         self.logger.info(f"Loading data ...")
-        X, y = dataloader.load_pretrain_data(label = all_labels, model_type = self.pretrain_config["model_type"])
+        X, y = dataloader.load_pretrain_data(label = all_labels, model_type = self.experiment_config["model_type"])
         # convert to numpy array
         X = X.to_numpy()
         y = y.to_numpy()

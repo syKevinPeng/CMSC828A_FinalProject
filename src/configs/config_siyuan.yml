@@ -36,8 +36,7 @@ preprocessing: &preprocessing_config
       cycling: es__bicycling 
 
 
-pretrain:
-  model_type: "CL" # one of ["CL", "MTL"]
+pretrain: &pretrain
   universal_label: *universal_label
   preprocessing_config: *preprocessing_config
 
@@ -56,5 +55,7 @@ experiment:
   training_epochs: &default_epochs 15
   output_directory: "./checkpoints"
   batch_size: 8
+
+  model_type: "CL" # one of ["CL", "MTL"]
 
 

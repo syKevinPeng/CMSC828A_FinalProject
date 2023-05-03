@@ -23,6 +23,7 @@ class Dataloader():
         self.dataset_list = self.experiment_config["dataset"]
         self.output_dir =Path(self.experiment_config["output_directory"])/self.experiment_config['exp_name']
         self.logger = get_logger( self.output_dir, "Dataloader")
+        self.train_type = self.experiment_config['model_type']
         self.datasets = self.prepare_dataset()
     
     def prepare_dataset(self):
@@ -34,9 +35,11 @@ class Dataloader():
                 if not (preprocessed_file).is_file():
                     self.logger.info("Extrasensory not found. Preprocessing")
                     es_df = self.preprocess_es(save_df = True, dir = preprocessed_file)
+                    if self.train_type == 'CL': self.prepare_hear_selection_data(es_df)
                 elif self.experiment_config["force_preprocess"]:
                     self.logger.warning("Extrasensory found but force_preprocess is set to True. Preprocessing")
                     es_df = self.preprocess_es(save_df = True, dir = preprocessed_file)
+                    if self.train_type == 'CL': self.prepare_hear_selection_data(es_df)
                 else:
                     self.logger.info("Extrasensory found. Loading")
                     es_df = pd.read_csv(preprocessed_file)
@@ -65,3 +68,7 @@ class Dataloader():
             # return tf.data.Dataset.from_tensor_slices((self.datasets[['x', 'y', 'z']], self.datasets[label]))
         elif model_type == "MTL": # output all 
             return self.datasets[['x', 'y', 'z']], self.datasets
+    
+    def prepare_hear_selection_data(self, es_df):
+        output_dir = Path(self.preprocess_config["extrasensory_preprocessor"]["out"]['dir'])
+        extrasensory.herd_selection(es_df, output_dir, logger = self.logger)
