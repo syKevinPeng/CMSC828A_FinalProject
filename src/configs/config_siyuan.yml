@@ -45,11 +45,11 @@ pretrain: &pretrain
 # specific experiment config:
 experiment:
   # experiment prefix/name will be will append to the output dir
-  exp_name: "CL"
+  exp_name: "baseline"
   # Data Preprocessing Related Config
   dataset: 
     - ES # one of ["ES", "SOME OTHER DATASET: TBD"]
-  force_preprocess: false # if true, preprocess data again and overwrite existing files
+  force_preprocess: true # if true, preprocess data again and overwrite existing files
 
   # Training Related Config
   training_epochs: &default_epochs 15
@@ -58,6 +58,6 @@ experiment:
   valid_raio: 0.1 # the portion of data to be used for validation
   verbose: true # whether to explicitly print out training progress
 
-  model_type: "CL" # one of ['baseline',"CL", "MTL"]
+  model_type: "baseline" # one of ["baseline","CL", "MTL"]
 
 
