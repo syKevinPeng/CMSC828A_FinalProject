@@ -56,6 +56,6 @@ experiment:
   output_directory: "./checkpoints"
   batch_size: 8
 
-  model_type: "CL" # one of ["CL", "MTL"]
+  model_type: "CL" # one of ['baseline',"CL", "MTL"]
 
 

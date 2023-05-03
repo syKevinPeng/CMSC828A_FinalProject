@@ -26,7 +26,7 @@ def main():
         start_time = time.time()
         config["pretrain"]["start_time"] = start_time
         trainer = pretrain.Trainer(config["experiment"], config["pretrain"])
-        trainer.train_baseline()
+        trainer.train()
 
 
 if __name__ == "__main__":

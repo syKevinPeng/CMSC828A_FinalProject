@@ -12,14 +12,25 @@ class Trainer:
         self.pretrain_config = pretrain_config
         self.output_dir = pathlib.Path(self.experiment_config["output_directory"])/self.experiment_config['exp_name']
         self.logger = get_logger(self.output_dir, "Trainer")
+        self.model_type = self.experiment_config["model_type"]
     
+    def train(self):
+        if self.model_type in ['bl', 'baseline', 'Baseline']:
+            self.train_baseline()
+        elif self.model_type in ['cl', 'CL','ContinueLearning']:
+            self.train_cl()
+        elif self.model_type in ['mtl', 'MTL','MultitaskLearning']:
+            self.train_mtl()
+        else:
+            raise ValueError(f"Model type {self.model_type} not supported")
+
     # training code for baseline model
     def train_baseline(self):
         # load data
         dataloader = Dataloader(self.pretrain_config, self.experiment_config)
         all_labels = self.pretrain_config['universal_label']
         self.logger.info(f"Loading data ...")
-        X, y = dataloader.load_pretrain_data(label = all_labels, model_type = self.experiment_config["model_type"])
+        X, y = dataloader.load_pretrain_data(label = all_labels, model_type = self.model_type)
         # convert to numpy array
         X = X.to_numpy()
         y = y.to_numpy()
@@ -59,7 +70,7 @@ class Trainer:
         seen_label = np.append(seen_label, ['sedentary_sitting_other', 'sedentary_lying'])
         # get train data for the first two labels
         self.logger.info(f"Loading data of label sedentary_sitting_other and sedentary_lying ...")
-        X, y = dataloader.load_pretrain_data(label = seen_label, model_type = self.experiment_config["model_type"])
+        X, y = dataloader.load_pretrain_data(label = seen_label, model_type = self.model_type)
          # convert to numpy array
         X = X.to_numpy()
         y = y.to_numpy()
@@ -98,6 +109,10 @@ class Trainer:
             # load previously saved model:
             model = inception.Classifier_INCEPTION(self.output_dir, input_shape, nb_classes, build=True)
             model.load_model_from_weights(weights_path)
+    
+    # TODO train multitask learning
+    def train_mtl(self):
+        raise NotImplementedError
 
 
 
