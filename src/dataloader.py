@@ -69,6 +69,14 @@ class Dataloader():
         elif model_type == "MTL": # output all 
             return self.datasets[['x', 'y', 'z']], self.datasets
     
+    # read the csv reserved data
+    def load_reserved_data(self):
+        file_dir = Path(self.preprocess_config["extrasensory_preprocessor"]["out"]['dir'])/f"reserved_es.csv"
+        if not file_dir.is_file(): raise ValueError(f"Reserved data: {file_dir} not found")
+        return pd.read_csv(file_dir)
+
+    
+    # get herd selection data
     def prepare_hear_selection_data(self, es_df):
-        output_dir = Path(self.preprocess_config["extrasensory_preprocessor"]["out"]['dir'])
+        output_dir = Path(self.preprocess_config["extrasensory_preprocessor"]["out"]['dir'])/'herd_samples.csv'
         extrasensory.herd_selection(es_df, output_dir, logger = self.logger)

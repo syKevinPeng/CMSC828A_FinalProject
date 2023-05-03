@@ -6,6 +6,7 @@ from datetime import datetime
 import sys 
 import numpy as np
 from pathlib import Path
+import logging
 
 class ExtrasensoryProcessor(): 
     def __init__(self, config): 
@@ -212,6 +213,8 @@ def herd_selection(df:pd.DataFrame, output_dir:Path, logger=None):
     # select a fix number of samples that are closest to the centroid of each old class
     # NUMBER OF SAMPLES TO SELECT
     N = 200 
+    if logger is None:
+        logger = logging.getLogger(__name__)
     logger.info('------ Herd Selection ------')
     logger.info(f'number of reserverd samples for each class to reserve: {N}')
     classes = df.columns[7:].to_numpy()
@@ -244,7 +247,7 @@ def herd_selection(df:pd.DataFrame, output_dir:Path, logger=None):
 
 
 if __name__ == "__main__":
-    processed_csv = '/home/siyuan/class/cmsc828a_finalproject/datasets/preprocessed/extrasensory/preprocessed_es.csv'
-    output_dir = Path('/home/siyuan/class/cmsc828a_finalproject/datasets/preprocessed/extrasensory')
+    processed_csv = '/fs/class-projects/spring2023/cmsc828a/c828ag04/CMSC828A_FinalProject/datasets/preprocessed/extrasensory/preprocessed_es.csv'
+    output_dir = Path('/fs/class-projects/spring2023/cmsc828a/c828ag04/CMSC828A_FinalProject/datasets/preprocessed/extrasensory')
     df = pd.read_csv(processed_csv)
     herd_selection(df, output_dir)
