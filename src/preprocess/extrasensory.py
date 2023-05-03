@@ -7,7 +7,7 @@ import sys
 import numpy as np
 from pathlib import Path
 import logging
-
+# pd.options.mode.chained_assignment = None
 class ExtrasensoryProcessor(): 
     def __init__(self, config): 
         self.config = config 
@@ -225,10 +225,11 @@ def herd_selection(df:pd.DataFrame, output_dir:Path, logger=None):
         label_df = df[df[label] == True]
         print(f'length of {label} is {len(label_df)}')
         # get the centroid of the label
-        label_df_feature = label_df[['x','y','z','ro_xy','ro_xz','ro_yz']]
+        label_df_feature = label_df.loc[:,['x','y','z','ro_xy','ro_xz','ro_yz']]
         centroid = label_df_feature.mean(axis=0)
         # calculate the distance between each row and the centroid
-        label_df['distance'] = label_df_feature.apply(lambda row: np.linalg.norm(row - centroid), axis=1)
+        dist = label_df_feature.apply(lambda row: np.linalg.norm(row - centroid), axis=1).to_numpy()
+        label_df.loc[:, ['distance']] = dist
         # sort the rows by distance
         label_df = label_df.sort_values(by=['distance'])
         # select the first N rows
@@ -238,6 +239,8 @@ def herd_selection(df:pd.DataFrame, output_dir:Path, logger=None):
         label_df = label_df.reset_index(drop=True)
         # update the df
         reserved_samples[label] = label_df
+        label_col = label_df.loc[:,[label]].to_numpy()
+        if False in label_col: raise Exception('label column should only contain True')
     # concat all the dataframes
     reserved_df = pd.concat(reserved_samples.values(), ignore_index=True)
     # save the df to csv
