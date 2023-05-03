@@ -127,16 +127,8 @@ class Classifier_INCEPTION:
             mini_batch_size = self.batch_size
 
         start_time = time.time()
-
-        # if plot_test_acc:
-
         hist = self.model.fit(x_train, y_train, batch_size=mini_batch_size, epochs=self.nb_epochs,
                                   verbose=self.verbose, validation_data=(x_val, y_val), callbacks=self.callbacks)
-        # else:
-
-        #     hist = self.model.fit(x_train, y_train, batch_size=mini_batch_size, epochs=self.nb_epochs,
-        #                           verbose=self.verbose, callbacks=self.callbacks)
-
         duration = time.time() - start_time
 
         self.model.save(self.output_directory + 'last_model.hdf5')

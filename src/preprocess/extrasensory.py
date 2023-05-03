@@ -205,3 +205,43 @@ class ExtrasensoryProcessor():
             y_all_df['label:uuid'] = y_all['es__uuid']
             
         return y_all_df
+    
+    # choosing a fixed number of samples that are closest to the centroid of each old class
+    # input: preprocessed data frame
+def herd_selection(df:pd.DataFrame, output_dir:Path, logger=None):
+    # select a fix number of samples that are closest to the centroid of each old class
+    # NUMBER OF SAMPLES TO SELECT
+    N = 200 
+
+    classes = df.columns[7:].to_numpy()
+    print(f'all classes: {classes}')
+    reserved_samples = {}
+    for label in classes:
+        # select all rows with the columns=label is true
+        label_df = df[df[label] == True]
+        print(f'length of {label} is {len(label_df)}')
+        # get the centroid of the label
+        label_df_feature = label_df[['x','y','z','ro_xy','ro_xz','ro_yz']]
+        centroid = label_df_feature.mean(axis=0)
+        # calculate the distance between each row and the centroid
+        label_df['distance'] = label_df_feature.apply(lambda row: np.linalg.norm(row - centroid), axis=1)
+        # sort the rows by distance
+        label_df = label_df.sort_values(by=['distance'])
+        # select the first N rows
+        label_df = label_df[label_df[label]==True].iloc[:N] # store positive samples
+        label_df = label_df.drop(columns=['distance'])
+        # reset index
+        label_df = label_df.reset_index(drop=True)
+        # update the df
+        reserved_samples[label] = label_df
+    # concat all the dataframes
+    reserved_df = pd.concat(reserved_samples.values(), ignore_index=True)
+    # save the df to csv
+    reserved_df.to_csv(output_dir/'herd_samples.csv', index=False)
+
+
+if __name__ == "__main__":
+    processed_csv = '/home/siyuan/class/cmsc828a_finalproject/datasets/preprocessed/extrasensory/preprocessed_es.csv'
+    output_dir = Path('/home/siyuan/class/cmsc828a_finalproject/datasets/preprocessed/extrasensory')
+    df = pd.read_csv(processed_csv)
+    herd_selection(df, output_dir)

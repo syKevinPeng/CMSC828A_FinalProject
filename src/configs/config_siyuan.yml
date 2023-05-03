@@ -5,7 +5,7 @@ preprocessing: &preprocessing_config
     - 'sedentary_lying'
     - 'upright_standing'
     - 'upright_stepping'
-    # - 'cycling'
+    - 'cycling'
   extrasensory_preprocessor:
     in: 
       dir: datasets/extrasensory/
@@ -46,7 +46,7 @@ pretrain:
 # specific experiment config:
 experiment:
   # experiment prefix/name will be will append to the output dir
-  exp_name: "baseline"
+  exp_name: "CL"
   # Data Preprocessing Related Config
   dataset: 
     - ES # one of ["ES", "SOME OTHER DATASET: TBD"]
