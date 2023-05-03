@@ -64,7 +64,10 @@ class Dataloader():
         # define sensor to train
         if model_type == "CL": # output dataset per label
             if label is None: raise ValueError("Please specify the label")
-            return self.datasets[['x', 'y', 'z']], self.datasets[label]
+            # convert dataframe to numpy
+            feature = self.datasets[['x', 'y', 'z']].to_numpy()
+            labels = self.datasets[label].to_numpy()
+            return feature, labels
             # return tf.data.Dataset.from_tensor_slices((self.datasets[['x', 'y', 'z']], self.datasets[label]))
         elif model_type == "MTL": # output all 
             return self.datasets[['x', 'y', 'z']], self.datasets

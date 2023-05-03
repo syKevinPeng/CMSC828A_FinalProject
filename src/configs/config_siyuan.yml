@@ -1,7 +1,7 @@
 preprocessing: &preprocessing_config
   universal_label: &universal_label
     - 'sedentary_sitting_other' 
-    # - 'sedentary_sitting_transport' 
+    - 'sedentary_sitting_transport' 
     - 'sedentary_lying'
     - 'upright_standing'
     - 'upright_stepping'
@@ -54,7 +54,8 @@ experiment:
   # Training Related Config
   training_epochs: &default_epochs 15
   output_directory: "./checkpoints"
-  batch_size: 8
+  batch_size: 1
+  verbose: true # whether to explicitly print out training progress
 
   model_type: "CL" # one of ['baseline',"CL", "MTL"]
 
