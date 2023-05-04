@@ -11,7 +11,7 @@ def get_logger(output_dir, name,logname="running.log"):
         output_dir.mkdir(parents=True, exist_ok=True)
     assert len(name) <= 12, "name should be less than 12 characters"
     formatter = logging.Formatter(
-        f"%(asctime)s {name:12} %(levelname)s\t%(message)s"
+        f"%(asctime)s {name:12} %(levelname)s\t%(message)s","%Y-%m-%d %H:%M:%S"
     )
     logging.basicConfig(
         filename=logname,

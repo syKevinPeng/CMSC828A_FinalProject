@@ -94,12 +94,12 @@ class Classifier_INCEPTION:
         output_layer = keras.layers.Dense(nb_classes, activation='softmax')(gap_layer)
 
         model = keras.models.Model(inputs=input_layer, outputs=output_layer)
-        f1_matric = tfa.metrics.F1Score(num_classes=nb_classes, average='macro', name='f1_score')
+        
         metrics = [
             tf.keras.metrics.Precision(name='precision'),
             tf.keras.metrics.Recall(name='recall'),
             tf.keras.metrics.BinaryAccuracy(name="accuracy"),
-            f1_matric
+            tfa.metrics.F1Score(num_classes=nb_classes, average='macro', name='f1_score')
         ]
         model.compile(loss='categorical_crossentropy', optimizer=keras.optimizers.Adam(),
                       metrics=metrics)

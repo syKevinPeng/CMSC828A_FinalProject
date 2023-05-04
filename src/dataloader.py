@@ -24,8 +24,8 @@ class Dataloader():
         self.logger = get_logger( self.output_dir, "Dataloader")
         self.train_type = self.experiment_config['model_type']
         self.datasets = self.prepare_dataset()
-        self.universal_label = self.experiment_config['universal_label']
-        self.valid_ratio = self.experiment_config['valid_ratio']
+        self.universal_label = pretrain_config['universal_label']
+        self.valid_ratio = self.experiment_config['valid_raio']
     
     def prepare_dataset(self):
         all_dataset = []
@@ -61,16 +61,30 @@ class Dataloader():
         if save_df: es_processor.save_df(es_df, save_dir = dir)
         return es_df
     
-    def load_pretrain_data(self, model_type, label = None):
+    def load_pretrain_data(self, labels:list, model_type):
         if model_type == 'baseline':
-            x_train, y_train, x_valid, y_valid = self.prepare_data_split()
-            return x_train[label].to_numpy(), y_train[label].to_numpy(), x_valid[label].to_numpy(), y_valid[label].to_numpy()
+            train_df, valid_df = self.prepare_data_split()
+            x_train = train_df[['x', 'y', 'z']].to_numpy()
+            y_train = train_df[labels].to_numpy()
+            x_valid = valid_df[['x', 'y', 'z']].to_numpy()
+            y_valid = valid_df[labels].to_numpy()
+            return x_train, y_train, x_valid, y_valid
         if model_type == "cl": # output dataset per label
-            x_train, y_train, x_valid, y_valid = self.prepare_data_split_with_herd()
-            return x_train[label].to_numpy(), y_train[label].to_numpy(), x_valid[label].to_numpy(), y_valid[label].to_numpy()
+            train_df, valid_df = self.prepare_data_split_with_herd()
+            train_df = train_df.loc[train_df[labels].isin([True])]
+            valid_df = valid_df.loc[valid_df[labels].isin([True])]
+            print(valid_df.shape)
+            exit()
+            x_train = pos_train_df[['x', 'y', 'z']].to_numpy()
+            y_train = pos_train_df[labels].to_numpy()
+            return x_train[labels].to_numpy(), y_train[labels].to_numpy(), x_valid[labels].to_numpy(), y_valid[labels].to_numpy()
         elif model_type == "MTL": # output all 
-            x_train, y_train, x_valid, y_valid = self.prepare_data_split()
-            return x_train[label].to_numpy(), y_train.to_numpy(), x_valid.to_numpy(), y_valid[label].to_numpy()
+            train_df, valid_df = self.prepare_data_split()
+            x_train = train_df[['x', 'y', 'z']].to_numpy()
+            y_train = train_df[labels].to_numpy()
+            x_valid = valid_df[['x', 'y', 'z']].to_numpy()
+            y_valid = valid_df[labels].to_numpy()
+            return x_train, y_train, x_valid, y_valid
     
     # read the csv reserved data
     def load_reserved_data(self, labels):
@@ -101,11 +115,11 @@ class Dataloader():
         valid_df = es_df.loc[valid_index]
         # remove the valid index from the dataset
         train_df = es_df.drop(valid_index)
-        x_train = train_df[['x', 'y', 'z']]
-        y_train = train_df[self.universal_label]
-        x_valid = valid_df[['x', 'y', 'z']]
-        y_valid = valid_df[self.universal_label]
-        return x_train, y_train, x_valid, y_valid
+        # x_train = train_df[['x', 'y', 'z']]
+        # y_train = train_df[self.universal_label]
+        # x_valid = valid_df[['x', 'y', 'z']]
+        # y_valid = valid_df[self.universal_label]
+        return train_df, valid_df
     
     # get train and valid data without herd selection
     def prepare_data_split(self):
@@ -119,10 +133,10 @@ class Dataloader():
         valid_df = self.datasets.loc[valid_index]
         # remove the valid index from the dataset
         train_df = self.datasets.drop(valid_index)
-        x_train = train_df[['x', 'y', 'z']]
-        y_train = train_df[self.universal_label]
-        x_valid = valid_df[['x', 'y', 'z']]
-        y_valid = valid_df[self.universal_label]
-        return x_train, y_train, x_valid, y_valid
+        # x_train = train_df[['x', 'y', 'z']]
+        # y_train = train_df[self.universal_label]
+        # x_valid = valid_df[['x', 'y', 'z']]
+        # y_valid = valid_df[self.universal_label]
+        return train_df, valid_df
 
 
