@@ -1,5 +1,5 @@
 import pathlib, datetime
-from dataloader import Dataloader
+from dataloader import PrepareDataLoader
 from model import inception
 from utils.utils import get_logger
 import numpy as np
@@ -32,33 +32,27 @@ class Trainer:
         nb_epochs = self.experiment_config["training_epochs"]
         verbose = self.experiment_config["verbose"]
         # load data
-        dataloader = Dataloader(self.pretrain_config, self.experiment_config)
+        dataloader = PrepareDataLoader(self.pretrain_config, self.experiment_config)
         self.logger.info(f"Loading data ...")
-        X_train, y_train, X_test, y_test = dataloader.load_pretrain_data(labels = self.universal_label, model_type = "baseline")
-        # convert one-hot to label
-        y_true = np.argmax(y_test, axis=1)
+        train_dataloader, valid_dataloader  = dataloader.load_pretrain_data(labels = self.universal_label, model_type = "baseline")
         if not self.output_dir.is_dir():
             self.logger.warning(f"Parent directory {self.output_dir} not found. Creating directory")
             self.output_dir.mkdir(parents=True, exist_ok=True)
         nb_classes = len(self.universal_label)
-        # add channel dimension if needed
-        if len(X_train.shape) == 2: 
-            X_train = X_train.reshape((X_train.shape[0], X_train.shape[1], 1))
-            X_test = X_test.reshape((X_test.shape[0], X_test.shape[1], 1))
-        input_shape =X_train.shape[1:]
+
+        input_shape =(3,1)
         model = inception.Classifier_INCEPTION(self.output_dir, input_shape, nb_classes,
                                                                 verbose=verbose, 
                                                                 build=True, 
-                                                                batch_size=batch_size,
                                                                 nb_epochs = nb_epochs,
                                                                 use_bottleneck = False)
         self.logger.info("---- Start training ----") 
-        model.fit(X_train, y_train, X_test, y_test, y_true)
+        model.fit(train_dataloader, valid_dataloader)
         self.logger.info("---- End training ----")
 
     def train_cl(self):
         # initialize dataloader
-        dataloader = Dataloader(self.pretrain_config, self.experiment_config)
+        dataloader = PrepareDataLoader(self.pretrain_config, self.experiment_config)
         all_labels = self.pretrain_config['universal_label']
         batch_size = self.experiment_config["batch_size"]
         nb_epochs = self.experiment_config["training_epochs"]
@@ -71,10 +65,8 @@ class Trainer:
         seen_label = np.append(seen_label, ['sedentary_sitting_other', 'sedentary_lying'])
         # get train data for the first two labels
         self.logger.info(f"Loading data of label sedentary_sitting_other and sedentary_lying ...")
-        X_train, y_train, X_test, y_test = dataloader.load_pretrain_data(labels = seen_label, model_type = 'cl')
+        train_df, valid_df = dataloader.load_pretrain_data(labels = seen_label, model_type = 'cl')
        
-        # convert one-hot to label
-        y_true = np.argmax(y_test, axis=1)
         if not self.output_dir.is_dir():
             self.logger.warning(f"Parent directory {self.output_dir} not found. Creating directory")
             self.output_dir.mkdir(parents=True, exist_ok=True)
@@ -82,18 +74,14 @@ class Trainer:
         nb_classes = len(seen_label)
 
         # add channel dimension if needed
-        if len(X_train.shape) == 2: 
-            X_train = X_train.reshape((X_train.shape[0], X_train.shape[1], 1))
-            X_test = X_test.reshape((X_test.shape[0], X_test.shape[1], 1))
-        input_shape =X_train.shape[1:]
+        input_shape =(3,1)
         output_dir = self.output_dir/"-".join(seen_label)
         model = inception.Classifier_INCEPTION(output_dir, input_shape, nb_classes,
                                                                 verbose=verbose, 
                                                                 build=True, 
-                                                                batch_size=batch_size,
                                                                 nb_epochs = nb_epochs,
                                                                 use_bottleneck = False)
-        model.fit(X_train, y_train, X_test, y_test, y_true)
+        model.fit(X_train, y_train, X_test, y_test)
         self.logger.info(f"---- End training : {seen_label}----")
         self.logger.info(f"---- End 1st iteration ----")
 
