@@ -9,7 +9,7 @@
 set -x
 
 srun bash -c "source /fs/classhomes/spring2023/cmsc828a/c828a050/.profile;conda activate cmsc828_final; \
-python3 src/main.py \
-    --config src/configs/config_siyuan.yml \
+python3 src_mtl/main.py \
+    --config src_mtl/configs/config_tayo.yml \
     --train"
  
