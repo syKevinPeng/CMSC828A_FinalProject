@@ -97,11 +97,12 @@ class Trainer:
         # get unseen label
         unseen_label = np.setdiff1d(all_labels, seen_label)
         for label in unseen_label:
-            seen_label = np.append(seen_label, label)
             nb_classes = len(seen_label)
-            weights_path = self.output_dir/'last_model.hdf5'
+            weights_path = self.output_dir/seen_label/'last_model.hdf5'
+            seen_label = np.append(seen_label, label)
             # load previously saved model:
             model = inception.Classifier_INCEPTION(self.output_dir, input_shape, nb_classes, build=True)
+            print(weights_path)
             model.load_model_from_weights(weights_path)
             # get train data for the seen labels
             self.logger.info(f"Loading data of label {seen_label} ...")

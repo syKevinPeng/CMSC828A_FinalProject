@@ -245,8 +245,6 @@ def herd_selection(df:pd.DataFrame, output_dir:Path, logger=None):
     reserved_index = np.concatenate([df.index for df in reserved_samples.values()], axis=0)
     reserved_df = pd.concat(reserved_samples.values(), ignore_index=True)
     # save the df to csv
-    reserved_df.to_csv(output_dir/'herd_samples.csv', index=False)
-    logger.info(f'herd select data is saved to {output_dir}/herd_samples.csv')
     logger.info('------ Herd Selection Done ------')
     return reserved_df, reserved_index
 

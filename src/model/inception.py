@@ -11,7 +11,8 @@ from utils.inception_utils import calculate_metrics
 from utils.inception_utils import save_test_duration
 from utils.utils import TrainingCallback
 import tensorflow_addons as tfa
-
+from utils.utils import get_logger
+from pathlib import Path
 class Classifier_INCEPTION:
 
     def __init__(self, output_directory, input_shape, nb_classes, verbose=False, build=True, batch_size=64,
@@ -28,7 +29,7 @@ class Classifier_INCEPTION:
         self.batch_size = batch_size
         self.bottleneck_size = 32
         self.nb_epochs = nb_epochs
-
+        self.logger = get_logger(self.output_directory, "INCEPTION")
         if build == True:
             self.model = self.build_model(input_shape, nb_classes)
             if (verbose == True):
@@ -98,7 +99,7 @@ class Classifier_INCEPTION:
         metrics = [
             tf.keras.metrics.Precision(name='precision'),
             tf.keras.metrics.Recall(name='recall'),
-            tf.keras.metrics.BinaryAccuracy(name="accuracy"),
+            tf.keras.metrics.Accuracy(name="accuracy"),
             tfa.metrics.F1Score(num_classes=nb_classes, average='macro', name='f1_score')
         ]
         model.compile(loss='categorical_crossentropy', optimizer=keras.optimizers.Adam(),
@@ -116,7 +117,7 @@ class Classifier_INCEPTION:
 
         return model
 
-    def fit(self, x_train, y_train, x_val, y_val, y_true, plot_test_acc=False):
+    def fit(self, x_train, y_train, x_val, y_val, y_true, plot_test_acc=False, save_log = False):
         if not tf.test.is_built_with_cuda():
             raise Exception('error no gpu')
         # x_val and y_val are only used to monitor the test loss and NOT for training
@@ -131,18 +132,19 @@ class Classifier_INCEPTION:
                                   verbose=self.verbose, validation_data=(x_val, y_val), callbacks=self.callbacks)
         duration = time.time() - start_time
 
-        self.model.save(self.output_directory + 'last_model.hdf5')
+        self.model.save(self.output_directory /'last_model.hdf5')
 
         y_pred = self.predict(x_val, y_true, x_train, y_train, y_val,
                               return_df_metrics=False)
 
         # save predictions
-        np.save(self.output_directory + 'y_pred.npy', y_pred)
+        # np.save(self.output_directory + 'y_pred.npy', y_pred)
 
         # convert the predicted from binary to integer
         y_pred = np.argmax(y_pred, axis=1)
 
-        df_metrics = save_logs(self.output_directory, hist, y_pred, y_true, duration,
+        if save_log:
+            df_metrics = save_logs(self.output_directory, hist, y_pred, y_true, duration,
                                plot_test_acc=plot_test_acc)
 
         keras.backend.clear_session()
@@ -151,7 +153,7 @@ class Classifier_INCEPTION:
 
     def predict(self, x_test, y_true, x_train, y_train, y_test, return_df_metrics=True):
         start_time = time.time()
-        model_path = self.output_directory + 'last_model.hdf5'
+        model_path = self.output_directory / 'last_model.hdf5'
         model = keras.models.load_model(model_path)
         y_pred = model.predict(x_test, batch_size=self.batch_size)
         if return_df_metrics:
@@ -160,9 +162,16 @@ class Classifier_INCEPTION:
             return df_metrics
         else:
             test_duration = time.time() - start_time
-            save_test_duration(self.output_directory + 'test_duration.csv', test_duration)
+            save_test_duration(self.output_directory /'test_duration.csv', test_duration)
             return y_pred
     
     def load_model_from_weights(self, weights_path):
-        self.model.load_weights(weights_path)
+
+        if type(weights_path) == str:
+            weights_path = Path(weights_path)
+        elif type(weights_path) == Path:
+            self.model.load_weights(weights_path.as_posix())
+            self.logger.info(f"Loading model from weights at {weights_path.as_posix()}")
+        else:
+            raise Exception(f"weights_path must be a string or a Path object, but got {type(weights_path)}")
         return self.model

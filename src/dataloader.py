@@ -70,14 +70,26 @@ class Dataloader():
             y_valid = valid_df[labels].to_numpy()
             return x_train, y_train, x_valid, y_valid
         if model_type == "cl": # output dataset per label
-            train_df, valid_df = self.prepare_data_split_with_herd()
-            train_df = train_df.loc[train_df[labels].isin([True])]
-            valid_df = valid_df.loc[valid_df[labels].isin([True])]
-            print(valid_df.shape)
-            exit()
-            x_train = pos_train_df[['x', 'y', 'z']].to_numpy()
-            y_train = pos_train_df[labels].to_numpy()
-            return x_train[labels].to_numpy(), y_train[labels].to_numpy(), x_valid[labels].to_numpy(), y_valid[labels].to_numpy()
+            # get herd selection data
+            # load heard_selection data
+            herd_data, herd_index = self.load_reserved_data(labels)
+            train_df, valid_df = self.prepare_data_split_with_herd(herd_index)
+            # select rows where any of the "labels" columns is 1
+            train_df = train_df[train_df[labels].any(axis=1)]
+            valid_df = valid_df[valid_df[labels].any(axis=1)]
+            herd_df = herd_data[herd_data[labels].any(axis=1)]
+
+            # debug
+            train_df = train_df.iloc[:1000]
+            valid_df = valid_df.iloc[:1000]
+
+            # simple combination strategy: need modificaiton later
+            train_df = pd.concat([train_df, herd_df])
+            x_train = train_df[['x', 'y', 'z']].to_numpy()
+            y_train = train_df[labels].to_numpy()
+            x_valid = valid_df[['x', 'y', 'z']].to_numpy()
+            y_valid = valid_df[labels].to_numpy()
+            return x_train, y_train, x_valid, y_valid
         elif model_type == "MTL": # output all 
             train_df, valid_df = self.prepare_data_split()
             x_train = train_df[['x', 'y', 'z']].to_numpy()
@@ -88,17 +100,23 @@ class Dataloader():
     
     # read the csv reserved data
     def load_reserved_data(self, labels):
-        file_dir = Path(self.preprocess_config["extrasensory_preprocessor"]["out"]['dir'])/f"reserved_es.csv"
-        if not file_dir.is_file(): raise ValueError(f"Reserved data: {file_dir} not found")
-        feature = self.datasets[['x', 'y', 'z']].to_numpy()
-        labels = self.datasets[labels].to_numpy()
-        return feature, labels
+        data_path = Path(self.preprocess_config["extrasensory_preprocessor"]["out"]['dir'])/f'herd_samples.csv'
+        index_path = Path(self.preprocess_config["extrasensory_preprocessor"]["out"]['dir'])/f'herd_samples_index.npy'
+        if not data_path.is_file(): raise ValueError(f"Reserved data: {data_path} not found. Try to set force_preprocess to True")
+        if not index_path.is_file(): raise ValueError(f"index file: {index_path} not found. Try to set force_preprocess to True")
+        reserved_df = pd.read_csv(data_path)
+        reserved_index = np.load(index_path)
+        return reserved_df, reserved_index
 
     
     # get herd selection data
-    def prepare_herd_selection_data(self):
-        output_dir = Path(self.preprocess_config["extrasensory_preprocessor"]["out"]['dir'])/'herd_samples.csv'
-        reserved_df, reserved_index = extrasensory.herd_selection(self.datasets, output_dir, logger = self.logger)
+    def prepare_herd_selection_data(self, es_df):
+        output_dir = Path(self.preprocess_config["extrasensory_preprocessor"]["out"]['dir'])
+        reserved_df, reserved_index = extrasensory.herd_selection(es_df, output_dir, logger = self.logger)
+        reserved_df.to_csv(output_dir/'herd_samples.csv', index=False)
+        np.save(output_dir/'herd_samples_index.npy', reserved_index)
+        self.logger.info(f'herd select data is saved to {output_dir}/herd_samples.csv')
+        self.logger.info(f'herd select data index is saved to {output_dir}/herd_samples_index.npy')
         return reserved_df, reserved_index
 
     # get train and valid data. We don't selelct reserved data for validation 
