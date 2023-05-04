@@ -1,6 +1,7 @@
 # Modified based on https://github.com/hfawaz/InceptionTime/blob/master/classifiers/inception.py
 
 # resnet model
+import pathlib
 from sklearn.metrics import f1_score
 from tensorflow import keras
 import numpy as np
@@ -166,12 +167,6 @@ class Classifier_INCEPTION:
             return y_pred
     
     def load_model_from_weights(self, weights_path):
-
-        if type(weights_path) == str:
-            weights_path = Path(weights_path)
-        elif type(weights_path) == Path:
-            self.model.load_weights(weights_path.as_posix())
-            self.logger.info(f"Loading model from weights at {weights_path.as_posix()}")
-        else:
-            raise Exception(f"weights_path must be a string or a Path object, but got {type(weights_path)}")
+        self.model.load_weights(weights_path.as_posix())
+        self.logger.info(f"Loading model from weights at {weights_path.as_posix()}")
         return self.model

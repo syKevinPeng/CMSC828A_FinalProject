@@ -64,6 +64,7 @@ class Trainer:
 
         seen_label = np.array([])
         # ---- first iter -----
+        self.logger.info(f"---- Begin 1st iteration ----")
         # sedentary_sitting_other and sedentary_lying are two labels get train first as they have the most number of data
         seen_label = np.append(seen_label, ['sedentary_sitting_other', 'sedentary_lying'])
         # get train data for the first two labels
@@ -82,7 +83,7 @@ class Trainer:
             X_train = X_train.reshape((X_train.shape[0], X_train.shape[1], 1))
             X_test = X_test.reshape((X_test.shape[0], X_test.shape[1], 1))
         input_shape =X_train.shape[1:]
-        output_dir = self.output_dir/"_".join(seen_label)
+        output_dir = self.output_dir/"-".join(seen_label)
         model = inception.Classifier_INCEPTION(output_dir, input_shape, nb_classes,
                                                                 verbose=verbose, 
                                                                 build=True, 
@@ -92,17 +93,17 @@ class Trainer:
         self.logger.info(f"---- Start training labels: {seen_label}----") 
         model.fit(X_train, y_train, X_test, y_test, y_true)
         self.logger.info(f"---- End training : {seen_label}----")
-
+        self.logger.info(f"---- End 1st iteration ----")
+        self.logger.info(f"---- Begin 2nd and following iteration ----")
         # ---- second and following iter -----
         # get unseen label
         unseen_label = np.setdiff1d(all_labels, seen_label)
         for label in unseen_label:
             nb_classes = len(seen_label)
-            weights_path = self.output_dir/seen_label/'last_model.hdf5'
+            weights_path = self.output_dir/"-".join(seen_label)/'last_model.hdf5'
             seen_label = np.append(seen_label, label)
             # load previously saved model:
             model = inception.Classifier_INCEPTION(self.output_dir, input_shape, nb_classes, build=True)
-            print(weights_path)
             model.load_model_from_weights(weights_path)
             # get train data for the seen labels
             self.logger.info(f"Loading data of label {seen_label} ...")
@@ -133,6 +134,7 @@ class Trainer:
             self.logger.info(f"---- Start training labels: {seen_label}----") 
             model.fit(X_train, y_train, X_test, y_test, y_true)
             self.logger.info(f"---- End training : {seen_label}----")
+        self.logger.info(f"---- Begin 2nd and following iteration ----")
 
 
     
