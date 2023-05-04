@@ -3,9 +3,6 @@ import numpy as np
 
 import tensorboard as tf
 import sys
-
-from regex import F
-from dataa_generator import DataLoader
 sys.path.insert(0,'../preprocess')
 from preprocess import extrasensory
 from pathlib import Path
@@ -87,7 +84,7 @@ class PrepareDataLoader():
 
             # simple combination strategy: need modificaiton later
             cl_dataloader_train = CLDataLoader(train_df, herd_df, self.experiment_config, labels)
-            cl_dataloader_valid = DataLoader(valid_df, herd_df, self.experiment_config, labels)
+            cl_dataloader_valid = DataLoader(valid_df, self.experiment_config, labels)
 
             return cl_dataloader_train, cl_dataloader_valid
         elif model_type == "MTL":
@@ -169,7 +166,7 @@ class DataLoader(keras.utils.Sequence):
 class CLDataLoader(keras.utils.Sequence):
     def __init__(self, input_df:pd.DataFrame, herd_df:pd.DataFrame,experiment_config, labels):
         self.input_df = input_df
-        self.herd_df = herd_df
+        self.herd_df = herd_df.reset_index()
         self.reserve_indexes = np.arange(len(herd_df))
         self.total_reserve_len = len(herd_df)
         self.batch_size = experiment_config['batch_size']
@@ -185,7 +182,6 @@ class CLDataLoader(keras.utils.Sequence):
         old_indexes = self.indexes[index*old_batch_size:(index+1)*old_batch_size]
         curr_reserved_ind = index%self.total_reserve_len
         reserve_indexes = self.reserve_indexes[curr_reserved_ind*reserve_batch_size:(curr_reserved_ind+1)*reserve_batch_size]
-
         x, y = self.__data_generation_train(old_indexes)
         x_reserve, y_reserve = self.__data_generation_herd(reserve_indexes)
         x = np.concatenate((x, x_reserve), axis=0)
@@ -196,10 +192,12 @@ class CLDataLoader(keras.utils.Sequence):
     
     
     def __data_generation_train(self, indexes):
-        x = self.train_df.iloc[indexes][['x', 'y', 'z']].to_numpy()
-        y = self.train_df.iloc[indexes][self.labels].to_numpy()
+        index = self.input_df.index[indexes]
+        x = self.input_df.loc[index, ['x', 'y', 'z']].to_numpy()
+        y = self.input_df.loc[index, self.labels].to_numpy()
         return x, y
     def __data_generation_herd(self, indexes):
-        x = self.herd_df.iloc[indexes][['x', 'y', 'z']].to_numpy()
-        y = self.herd_df.iloc[indexes][self.labels].to_numpy()
+        index = self.input_df.index[indexes]
+        x = self.herd_df.loc[index, ['x', 'y', 'z']].to_numpy()
+        y = self.herd_df.loc[index, self.labels].to_numpy()
         return x, y

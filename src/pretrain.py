@@ -81,7 +81,7 @@ class Trainer:
                                                                 build=True, 
                                                                 nb_epochs = nb_epochs,
                                                                 use_bottleneck = False)
-        model.fit(X_train, y_train, X_test, y_test)
+        model.fit(train_df, valid_df)
         self.logger.info(f"---- End training : {seen_label}----")
         self.logger.info(f"---- End 1st iteration ----")
 
@@ -105,24 +105,18 @@ class Trainer:
             model.load_model_from_weights(weights_path)
             # get train data for the seen labels
             self.logger.info(f"Loading data of label {seen_label} ...")
-            X_train, y_train, X_test, y_test= dataloader.load_pretrain_data(labels = seen_label, model_type = 'cl')
-            # convert one-hot to label
-            y_true = np.argmax(y_test, axis=1)
+            train_df, valid_df= dataloader.load_pretrain_data(labels = seen_label, model_type = 'cl')
             nb_classes = len(seen_label)
             # add channel dimension if needed
-            if len(X_train.shape) == 2: 
-                X_train = X_train.reshape((X_train.shape[0], X_train.shape[1], 1))
-                X_test = X_test.reshape((X_test.shape[0], X_test.shape[1], 1))
-            input_shape =X_train.shape[1:]
+            input_shape =(3,1)
             # construct output file
             output_dir = self.output_dir/"-".join(seen_label)
             model = inception.Classifier_INCEPTION(output_dir, input_shape, nb_classes,
                                                                 verbose=verbose, 
                                                                 build=True, 
-                                                                batch_size=batch_size,
                                                                 nb_epochs = nb_epochs,
                                                                 use_bottleneck = False)
-            model.fit(X_train, y_train, X_test, y_test, y_true)
+            model.fit(train_df, valid_df)
             self.logger.info(f"---- End training : {seen_label}----")
         self.logger.info(f"---- End 2nd and following iteration ----")
         self.logger.info("---- End training ----")
