@@ -34,7 +34,7 @@ class Classifier_INCEPTION:
         if build == True:
             self.model = self.build_model(input_shape, nb_classes)
             if (verbose == True):
-                self.model.summary()
+                self.logger.info(self.model.summary())
             self.verbose = verbose
             self.model.save_weights(self.output_directory / 'model_init.hdf5')
 

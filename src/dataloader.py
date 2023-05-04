@@ -26,6 +26,7 @@ class Dataloader():
         self.datasets = self.prepare_dataset()
         self.universal_label = pretrain_config['universal_label']
         self.valid_ratio = self.experiment_config['valid_raio']
+        self.debug = self.experiment_config['debug']
     
     def prepare_dataset(self):
         all_dataset = []
@@ -80,8 +81,9 @@ class Dataloader():
             herd_df = herd_data[herd_data[labels].any(axis=1)]
 
             # debug
-            train_df = train_df.iloc[:1000]
-            valid_df = valid_df.iloc[:1000]
+            if self.debug:
+                train_df = train_df.iloc[:100]
+                valid_df = valid_df.iloc[:100]
 
             # simple combination strategy: need modificaiton later
             train_df = pd.concat([train_df, herd_df])

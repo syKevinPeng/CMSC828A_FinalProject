@@ -76,6 +76,7 @@ class Trainer:
         if not self.output_dir.is_dir():
             self.logger.warning(f"Parent directory {self.output_dir} not found. Creating directory")
             self.output_dir.mkdir(parents=True, exist_ok=True)
+        self.logger.info(f"---- Start training labels: {seen_label}----") 
         nb_classes = len(seen_label)
 
         # add channel dimension if needed
@@ -90,31 +91,31 @@ class Trainer:
                                                                 batch_size=batch_size,
                                                                 nb_epochs = nb_epochs,
                                                                 use_bottleneck = False)
-        self.logger.info(f"---- Start training labels: {seen_label}----") 
         model.fit(X_train, y_train, X_test, y_test, y_true)
         self.logger.info(f"---- End training : {seen_label}----")
         self.logger.info(f"---- End 1st iteration ----")
-        self.logger.info(f"---- Begin 2nd and following iteration ----")
+
+
         # ---- second and following iter -----
+        self.logger.info(f"---- Begin 2nd and following iteration ----")
         # get unseen label
         unseen_label = np.setdiff1d(all_labels, seen_label)
         for label in unseen_label:
+            self.logger.info(f"---- Start training labels: {seen_label}----") 
             nb_classes = len(seen_label)
             weights_path = self.output_dir/"-".join(seen_label)/'last_model.hdf5'
             seen_label = np.append(seen_label, label)
             # load previously saved model:
-            model = inception.Classifier_INCEPTION(self.output_dir, input_shape, nb_classes, build=True)
+            model = inception.Classifier_INCEPTION(output_dir, input_shape, nb_classes,
+                                                                verbose=verbose, 
+                                                                build=True, 
+                                                                batch_size=batch_size,
+                                                                nb_epochs = nb_epochs,
+                                                                use_bottleneck = False)
             model.load_model_from_weights(weights_path)
             # get train data for the seen labels
             self.logger.info(f"Loading data of label {seen_label} ...")
             X_train, y_train, X_test, y_test= dataloader.load_pretrain_data(labels = seen_label, model_type = 'cl')
-            X_reserved, y_reserved = dataloader.load_reserved_data(label = seen_label)
-            # combine new data with previous data
-            X_train = np.concatenate((X_train, X_reserved), axis=0)
-            y_train = np.concatenate((y_train, y_reserved), axis=0)
-
-            # split data
-            # X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=10, random_state=42)
             # convert one-hot to label
             y_true = np.argmax(y_test, axis=1)
             nb_classes = len(seen_label)
@@ -124,17 +125,17 @@ class Trainer:
                 X_test = X_test.reshape((X_test.shape[0], X_test.shape[1], 1))
             input_shape =X_train.shape[1:]
             # construct output file
-            output_dir = self.output_dir/"_".join(seen_label)
+            output_dir = self.output_dir/"-".join(seen_label)
             model = inception.Classifier_INCEPTION(output_dir, input_shape, nb_classes,
-                                                                    verbose=verbose, 
-                                                                    build=True, 
-                                                                    batch_size=batch_size,
-                                                                    nb_epochs = nb_epochs,
-                                                                    use_bottleneck = False)
-            self.logger.info(f"---- Start training labels: {seen_label}----") 
+                                                                verbose=verbose, 
+                                                                build=True, 
+                                                                batch_size=batch_size,
+                                                                nb_epochs = nb_epochs,
+                                                                use_bottleneck = False)
             model.fit(X_train, y_train, X_test, y_test, y_true)
             self.logger.info(f"---- End training : {seen_label}----")
-        self.logger.info(f"---- Begin 2nd and following iteration ----")
+        self.logger.info(f"---- End 2nd and following iteration ----")
+        self.logger.info("---- End training ----")
 
 
     
