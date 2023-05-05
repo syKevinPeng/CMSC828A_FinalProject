@@ -1,6 +1,7 @@
 # Modified based on https://github.com/hfawaz/InceptionTime/blob/master/classifiers/inception.py
 
 # resnet model
+import pathlib
 from sklearn.metrics import f1_score
 from tensorflow import keras
 import numpy as np
@@ -11,10 +12,11 @@ from utils.inception_utils import calculate_metrics
 from utils.inception_utils import save_test_duration
 from utils.utils import TrainingCallback
 import tensorflow_addons as tfa
-
+from utils.utils import get_logger
+from pathlib import Path
 class Classifier_INCEPTION:
 
-    def __init__(self, output_directory, input_shape, nb_classes, verbose=False, build=True, batch_size=64,
+    def __init__(self, output_directory, input_shape, nb_classes, verbose=False, build=True, batch_size=1,
                  nb_filters=32, use_residual=True, use_bottleneck=True, depth=6, kernel_size=41, nb_epochs=1500):
 
         self.output_directory = output_directory
@@ -28,11 +30,11 @@ class Classifier_INCEPTION:
         self.batch_size = batch_size
         self.bottleneck_size = 32
         self.nb_epochs = nb_epochs
-
+        self.logger = get_logger(self.output_directory, "INCEPTION")
         if build == True:
             self.model = self.build_model(input_shape, nb_classes)
             if (verbose == True):
-                self.model.summary()
+                self.logger.info(self.model.summary())
             self.verbose = verbose
             self.model.save_weights(self.output_directory / 'model_init.hdf5')
 
@@ -94,12 +96,12 @@ class Classifier_INCEPTION:
         output_layer = keras.layers.Dense(nb_classes, activation='softmax')(gap_layer)
 
         model = keras.models.Model(inputs=input_layer, outputs=output_layer)
-        f1_matric = tfa.metrics.F1Score(num_classes=nb_classes, average='macro', name='f1_score')
+        
         metrics = [
             tf.keras.metrics.Precision(name='precision'),
             tf.keras.metrics.Recall(name='recall'),
-            tf.keras.metrics.BinaryAccuracy(name="accuracy"),
-            f1_matric
+            tf.keras.metrics.CategoricalAccuracy(name="accuracy"),
+            tfa.metrics.F1Score(num_classes=nb_classes, average='macro', name='f1_score')
         ]
         model.compile(loss='categorical_crossentropy', optimizer=keras.optimizers.Adam(),
                       metrics=metrics)
@@ -116,42 +118,39 @@ class Classifier_INCEPTION:
 
         return model
 
-    def fit(self, x_train, y_train, x_val, y_val, y_true, plot_test_acc=False):
+    def fit(self, train_dataloader, valid_dataloader, plot_test_acc=False, save_log = False):
         if not tf.test.is_built_with_cuda():
             raise Exception('error no gpu')
         # x_val and y_val are only used to monitor the test loss and NOT for training
 
-        if self.batch_size is None:
-            mini_batch_size = int(min(x_train.shape[0] / 10, 16))
-        else:
-            mini_batch_size = self.batch_size
 
         start_time = time.time()
-        hist = self.model.fit(x_train, y_train, batch_size=mini_batch_size, epochs=self.nb_epochs,
-                                  verbose=self.verbose, validation_data=(x_val, y_val), callbacks=self.callbacks)
+        hist = self.model.fit(x=train_dataloader, epochs=self.nb_epochs,
+                                  verbose=self.verbose, validation_data=valid_dataloader, callbacks=self.callbacks)
         duration = time.time() - start_time
+        self.logger.info(f"==== Training time: {duration} seconds ====")
+        self.model.save(self.output_directory /'last_model.hdf5')
 
-        self.model.save(self.output_directory + 'last_model.hdf5')
+        # y_pred = self.predict(x_val, y_true, x_train, y_train, y_val,
+        #                       return_df_metrics=False)
 
-        y_pred = self.predict(x_val, y_true, x_train, y_train, y_val,
-                              return_df_metrics=False)
+        # # save predictions
+        # # np.save(self.output_directory + 'y_pred.npy', y_pred)
 
-        # save predictions
-        np.save(self.output_directory + 'y_pred.npy', y_pred)
+        # # convert the predicted from binary to integer
+        # y_pred = np.argmax(y_pred, axis=1)
 
-        # convert the predicted from binary to integer
-        y_pred = np.argmax(y_pred, axis=1)
-
-        df_metrics = save_logs(self.output_directory, hist, y_pred, y_true, duration,
-                               plot_test_acc=plot_test_acc)
+        # if save_log:
+        #     df_metrics = save_logs(self.output_directory, hist, y_pred, y_true, duration,
+        #                        plot_test_acc=plot_test_acc)
 
         keras.backend.clear_session()
 
-        return df_metrics
+        return self.model
 
     def predict(self, x_test, y_true, x_train, y_train, y_test, return_df_metrics=True):
         start_time = time.time()
-        model_path = self.output_directory + 'best_model.hdf5'
+        model_path = self.output_directory / 'last_model.hdf5'
         model = keras.models.load_model(model_path)
         y_pred = model.predict(x_test, batch_size=self.batch_size)
         if return_df_metrics:
@@ -160,5 +159,10 @@ class Classifier_INCEPTION:
             return df_metrics
         else:
             test_duration = time.time() - start_time
-            save_test_duration(self.output_directory + 'test_duration.csv', test_duration)
+            save_test_duration(self.output_directory /'test_duration.csv', test_duration)
             return y_pred
+    
+    def load_model_from_weights(self, weights_path):
+        self.model.load_weights(weights_path.as_posix())
+        self.logger.info(f"Loading model from weights at {weights_path.as_posix()}")
+        return self.model
