@@ -1,6 +1,6 @@
 import pathlib, datetime
 from dataloader import PrepareDataLoader
-from model import inception
+from model import inception, inception_cl
 from utils.utils import get_logger
 import numpy as np
 
@@ -41,11 +41,13 @@ class Trainer:
         nb_classes = len(self.universal_label)
 
         input_shape =(3,1)
+        ## DO NOT SET BATCH SIZE HERE
         model = inception.Classifier_INCEPTION(self.output_dir, input_shape, nb_classes,
                                                                 verbose=verbose, 
                                                                 build=True, 
                                                                 nb_epochs = nb_epochs,
-                                                                use_bottleneck = False)
+                                                                use_bottleneck = False
+                                                                )
         self.logger.info("---- Start training ----") 
         model.fit(train_dataloader, valid_dataloader)
         self.logger.info("---- End training ----")
@@ -76,11 +78,12 @@ class Trainer:
         # add channel dimension if needed
         input_shape =(3,1)
         output_dir = self.output_dir/"-".join(seen_label)
-        model = inception.Classifier_INCEPTION(output_dir, input_shape, nb_classes,
+        model = inception_cl.InceptionWithCL(output_dir, input_shape, nb_classes,
                                                                 verbose=verbose, 
                                                                 build=True, 
                                                                 nb_epochs = nb_epochs,
-                                                                use_bottleneck = False)
+                                                                use_bottleneck = False,
+                                                                use_CN = False) # do not use cosline normalziaton in first iter
         model.fit(train_df, valid_df)
         self.logger.info(f"---- End training : {seen_label}----")
         self.logger.info(f"---- End 1st iteration ----")
@@ -94,28 +97,25 @@ class Trainer:
             self.logger.info(f"---- Start training labels: {seen_label}----") 
             nb_classes = len(seen_label)
             weights_path = self.output_dir/"-".join(seen_label)/'last_model.hdf5'
-            seen_label = np.append(seen_label, label)
+            input_shape =(3,1)
+            # construct output file
+            output_dir = self.output_dir/"-".join(seen_label)
             # load previously saved model:
-            model = inception.Classifier_INCEPTION(output_dir, input_shape, nb_classes,
+            model = inception_cl.InceptionWithCL(output_dir, input_shape, nb_classes,
                                                                 verbose=verbose, 
                                                                 build=True, 
                                                                 batch_size=batch_size,
                                                                 nb_epochs = nb_epochs,
-                                                                use_bottleneck = False)
+                                                                use_bottleneck = False,
+                                                                use_CN = True)
             model.load_model_from_weights(weights_path)
+            # update seen label and the last layer of the model: output class + 1
+            seen_label = np.append(seen_label, label)
+            new_nb_classes = len(seen_label)
+            model.add_new_class(new_nb_classes)
             # get train data for the seen labels
             self.logger.info(f"Loading data of label {seen_label} ...")
             train_df, valid_df= dataloader.load_pretrain_data(labels = seen_label, model_type = 'cl')
-            nb_classes = len(seen_label)
-            # add channel dimension if needed
-            input_shape =(3,1)
-            # construct output file
-            output_dir = self.output_dir/"-".join(seen_label)
-            model = inception.Classifier_INCEPTION(output_dir, input_shape, nb_classes,
-                                                                verbose=verbose, 
-                                                                build=True, 
-                                                                nb_epochs = nb_epochs,
-                                                                use_bottleneck = False)
             model.fit(train_df, valid_df)
             self.logger.info(f"---- End training : {seen_label}----")
         self.logger.info(f"---- End 2nd and following iteration ----")

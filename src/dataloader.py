@@ -1,5 +1,7 @@
+from re import A
 import pandas as pd
 import numpy as np
+from regex import B
 
 import tensorboard as tf
 import sys
@@ -64,6 +66,7 @@ class PrepareDataLoader():
     def load_pretrain_data(self, labels:list, model_type):
         if model_type == 'baseline':
             train_df, valid_df = self.prepare_data_split()
+            # Convert data to batches
             dataloader_train = DataLoader(train_df, self.experiment_config, labels)
             dataloader_valid = DataLoader(valid_df, self.experiment_config, labels)
             return dataloader_train, dataloader_valid
@@ -142,6 +145,9 @@ class PrepareDataLoader():
         return train_df, valid_df
     
 
+# list = [A,b,c,d]
+# list => index 0 =A; index 1 =B; index 2 = c; index 3 = d
+
 # dataloader for baseline training
 class DataLoader(keras.utils.Sequence):
     def __init__(self, input_df:pd.DataFrame, experiment_config, labels):
@@ -161,7 +167,7 @@ class DataLoader(keras.utils.Sequence):
         if len(x.shape) == 2: 
             x = x.reshape((x.shape[0], x.shape[1], 1))
         return x, y
-
+    
 # dataloader used for CL training, specifically it merge the reserved data and the current batch data
 class CLDataLoader(keras.utils.Sequence):
     def __init__(self, input_df:pd.DataFrame, herd_df:pd.DataFrame,experiment_config, labels):
