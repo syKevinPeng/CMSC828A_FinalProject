@@ -14,7 +14,7 @@ from utils.utils import TrainingCallback
 import tensorflow_addons as tfa
 from utils.utils import get_logger
 from pathlib import Path
-from cosine_norm import CosineLinear
+from .cosine_norm import CosineLinear
 
 class InceptionWithCL:
 
@@ -53,7 +53,7 @@ class InceptionWithCL:
             if (verbose == True):
                 self.logger.info(self.model.summary())
             self.verbose = verbose
-            self.model.save_weights(self.output_directory / 'model_init.hdf5')
+            # self.model.save_weights(self.output_directory / 'model_init.hdf5')
 
     def _inception_module(self, input_tensor, stride=1, activation='linear'):
 
@@ -113,7 +113,7 @@ class InceptionWithCL:
 
         if add_cosine_layer:
             output_layer = CosineLinear(in_features=gap_layer.shape[-1], 
-                                    out_feature = nb_classes)(gap_layer)
+                                    out_features = nb_classes)(gap_layer)
         else:
             output_layer = keras.layers.Dense(nb_classes, activation='softmax')(gap_layer)
 
@@ -161,10 +161,10 @@ class InceptionWithCL:
 
     # given a trained model, modify the last layer to output nb_classes
     def add_new_class(self, nb_classes):
-        self.model.layers.pop()
-        gap_layer = self.model.layers[-1].output
-        output_layer = output_layer = CosineLinear(in_features=gap_layer.shape[-1], 
-                                    out_feature = nb_classes)(gap_layer)
+        # remove the last layer of the model
+        gap_layer = self.model.layers[-2].output
+        output_layer = CosineLinear(in_features=gap_layer.shape[-1], 
+                                    out_features = nb_classes)(gap_layer)
         model = keras.models.Model(inputs=self.model.input, outputs=output_layer)
         # define the metrics.
         metrics = [
@@ -186,23 +186,9 @@ class InceptionWithCL:
                                                            save_best_only=False)
         my_callback = TrainingCallback(self.output_directory, "Training")
         self.callbacks = [reduce_lr, model_checkpoint, my_callback]
+        self.logger.info(self.model.summary())
 
         return model
-
-
-    def predict(self, x_test, y_true, x_train, y_train, y_test, return_df_metrics=True):
-        start_time = time.time()
-        model_path = self.output_directory / 'last_model.hdf5'
-        model = keras.models.load_model(model_path)
-        y_pred = model.predict(x_test, batch_size=self.batch_size)
-        if return_df_metrics:
-            y_pred = np.argmax(y_pred, axis=1)
-            df_metrics = calculate_metrics(y_true, y_pred, 0.0)
-            return df_metrics
-        else:
-            test_duration = time.time() - start_time
-            save_test_duration(self.output_directory /'test_duration.csv', test_duration)
-            return y_pred
     
     def load_model_from_weights(self, weights_path):
         self.model.load_weights(weights_path.as_posix())

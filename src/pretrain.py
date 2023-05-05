@@ -83,7 +83,7 @@ class Trainer:
                                                                 build=True, 
                                                                 nb_epochs = nb_epochs,
                                                                 use_bottleneck = False,
-                                                                use_CN = False) # do not use cosline normalziaton in first iter
+                                                                add_CN = False) # do not use cosline normalziaton in first iter
         model.fit(train_df, valid_df)
         self.logger.info(f"---- End training : {seen_label}----")
         self.logger.info(f"---- End 1st iteration ----")
@@ -93,29 +93,34 @@ class Trainer:
         self.logger.info(f"---- Begin 2nd and following iteration ----")
         # get unseen label
         unseen_label = np.setdiff1d(all_labels, seen_label)
+        dataloader = PrepareDataLoader(self.pretrain_config, self.experiment_config)
         for label in unseen_label:
-            self.logger.info(f"---- Start training labels: {seen_label}----") 
+            self.logger.info(f"---- Start training labels: {np.append(seen_label,label)}----") 
             nb_classes = len(seen_label)
             weights_path = self.output_dir/"-".join(seen_label)/'last_model.hdf5'
             input_shape =(3,1)
             # construct output file
             output_dir = self.output_dir/"-".join(seen_label)
             # load previously saved model:
+            _add_CN = False if len(seen_label) == 2 else True
             model = inception_cl.InceptionWithCL(output_dir, input_shape, nb_classes,
-                                                                verbose=verbose, 
+                                                                verbose=False, 
                                                                 build=True, 
                                                                 batch_size=batch_size,
                                                                 nb_epochs = nb_epochs,
                                                                 use_bottleneck = False,
-                                                                use_CN = True)
+                                                                add_CN = _add_CN) # use cosline normalziaton in second and following iter
             model.load_model_from_weights(weights_path)
+            self.logger.info(f'loaded model from {weights_path}')
             # update seen label and the last layer of the model: output class + 1
             seen_label = np.append(seen_label, label)
             new_nb_classes = len(seen_label)
+            # remove last layer and add cosine normalization layer
             model.add_new_class(new_nb_classes)
             # get train data for the seen labels
             self.logger.info(f"Loading data of label {seen_label} ...")
             train_df, valid_df= dataloader.load_pretrain_data(labels = seen_label, model_type = 'cl')
+            # TODO: make sure the new dataloader only load "new data" + herding data
             model.fit(train_df, valid_df)
             self.logger.info(f"---- End training : {seen_label}----")
         self.logger.info(f"---- End 2nd and following iteration ----")
