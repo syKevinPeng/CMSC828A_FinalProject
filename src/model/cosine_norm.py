@@ -8,9 +8,9 @@ class CosineLinear(Layer):
             raise ValueError("in_features and out_features must be specified")
         self.in_features = in_features
         self.out_features = out_features
-        self.weight = self.add_weight(shape=(in_features, out_features), initializer='uniform', trainable=True)
+        self.weight = self.add_weight(shape=(in_features, out_features), initializer='uniform', trainable=True, name='CL_weight')
         if sigma:
-            self.sigma = self.add_weight(shape=(1,), initializer='ones', trainable=True)
+            self.sigma = self.add_weight(shape=(1,), initializer='ones', trainable=True, name='CL_sigma')
         else:
             self.sigma = None
 
@@ -22,6 +22,7 @@ class CosineLinear(Layer):
         if self.sigma is not None:
             out = self.sigma * out
         return out
+
 
 class SplitCosineLinear(Layer):
     def __init__(self, in_features, out_features1, out_features2, sigma=True):

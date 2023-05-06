@@ -152,8 +152,9 @@ class InceptionWithCL:
         hist = self.model.fit(x=train_dataloader, epochs=self.nb_epochs,
                                   verbose=self.verbose, validation_data=valid_dataloader, callbacks=self.callbacks)
         duration = time.time() - start_time
-        self.logger.info(f"==== Training time: {duration} seconds ====")
-        self.model.save(self.output_directory /'last_model.hdf5')
+        self.logger.info(f"Training time: {duration} seconds")
+        self.model.save(self.output_directory /f'last_model.hdf5')
+        self.logger.info(f'current weights saved at {self.output_directory /"last_model.hdf5"}')
 
         keras.backend.clear_session()
 
@@ -186,11 +187,11 @@ class InceptionWithCL:
                                                            save_best_only=False)
         my_callback = TrainingCallback(self.output_directory, "Training")
         self.callbacks = [reduce_lr, model_checkpoint, my_callback]
-        self.logger.info(self.model.summary())
-
+        self.logger.info(model.summary())
+        self.model = model
         return model
     
     def load_model_from_weights(self, weights_path):
-        self.model.load_weights(weights_path.as_posix())
         self.logger.info(f"Loading model from weights at {weights_path.as_posix()}")
+        self.model.load_weights(weights_path.as_posix())
         return self.model
