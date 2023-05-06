@@ -60,14 +60,17 @@ class Trainer:
         nb_epochs = self.experiment_config["training_epochs"]
         verbose = self.experiment_config["verbose"]
 
-        seen_label = np.array([])
         # ---- first iter -----
+        print('-'*10)
         self.logger.info(f"Begin 1st iteration")
         # sedentary_sitting_other and sedentary_lying are two labels get train first as they have the most number of data
-        seen_label = np.append(seen_label, ['sedentary_sitting_other', 'sedentary_lying'])
+        seen_label = ['sedentary_sitting_other', 'sedentary_lying']
         # get train data for the first two labels
         self.logger.info(f"Loading data of label sedentary_sitting_other and sedentary_lying ...")
-        train_df, valid_df = dataloader.load_pretrain_data(labels = seen_label, model_type = 'cl')
+        train_df, valid_df = dataloader.load_pretrain_data(
+                                                                                    labels = seen_label, 
+                                                                                    model_type = 'cl', 
+                                                                                    new_class=seen_label)
        
         if not self.output_dir.is_dir():
             self.logger.warning(f"Parent directory {self.output_dir} not found. Creating directory")
@@ -87,13 +90,13 @@ class Trainer:
         model.fit(train_df, valid_df)
         self.logger.info(f"End training : {seen_label}")
         self.logger.info(f"End 1st iteration")
-
         # ---- second and following iter -----
-        self.logger.info(f"Begin 2nd and following iteration")
+        self.logger.info(f"Begin 2nd and following iteration:")
         # get unseen label
         unseen_label = np.setdiff1d(all_labels, seen_label)
         dataloader = PrepareDataLoader(self.pretrain_config, self.experiment_config)
         for label in unseen_label:
+            print('-'*10)
             self.logger.info(f"Start training labels: {np.append(seen_label,label)}") 
             nb_classes = len(seen_label)
             prev_weights_path = self.output_dir/"-".join(seen_label)/'last_model.hdf5'
@@ -115,8 +118,10 @@ class Trainer:
             model.add_new_class(new_nb_classes) # update last layer
             # get train data for the seen labels
             self.logger.info(f"Loading data of label {seen_label} ...")
-            train_df, valid_df= dataloader.load_pretrain_data(labels = seen_label, model_type = 'cl')
-            # TODO: make sure the new dataloader only load "new data" + herding data
+            train_df, valid_df= dataloader.load_pretrain_data(
+                                                                                    labels = seen_label, 
+                                                                                    model_type = 'cl', 
+                                                                                    new_class = [label])
             model.fit(train_df, valid_df)
             self.logger.info(f"End training : {seen_label}")
         self.logger.info("---- End training ----")

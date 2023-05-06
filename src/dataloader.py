@@ -63,7 +63,13 @@ class PrepareDataLoader():
         if save_df: es_processor.save_df(es_df, save_dir = dir)
         return es_df
     
-    def load_pretrain_data(self, labels:list, model_type):
+    def load_pretrain_data(self, labels:list, model_type, new_class = [None]):
+        '''
+        param:
+        labels: the Y labels to be outputed (i.e. total number of class)
+        model_type: specify one of ['baseline', 'cl', 'mtl']
+        new_class: ONLY used in continue learning. This is the new class added to the training pipeline. The data generator should only output X in 'newclass', but y in all 'labels'
+        '''
         if model_type == 'baseline':
             train_df, valid_df = self.prepare_data_split()
             # Convert data to batches
@@ -71,12 +77,11 @@ class PrepareDataLoader():
             dataloader_valid = DataLoader(valid_df, self.experiment_config, labels)
             return dataloader_train, dataloader_valid
         if model_type == "cl": # output dataset per label
-            # get herd selection data
             # load heard_selection data
             herd_data, herd_index = self.load_reserved_data(labels)
             train_df, valid_df = self.prepare_data_split_with_herd(herd_index)
-            # select rows where any of the "labels" columns is 1
-            train_df = train_df[train_df[labels].any(axis=1)]
+            # select rows where "new_class" columns is 1
+            train_df = train_df[train_df[new_class].any(axis=1)].reset_index()
             valid_df = valid_df[valid_df[labels].any(axis=1)]
             herd_df = herd_data[herd_data[labels].any(axis=1)]
 
@@ -143,10 +148,6 @@ class PrepareDataLoader():
         # remove the valid index from the dataset
         train_df = self.datasets.drop(valid_index)
         return train_df, valid_df
-    
-
-# list = [A,b,c,d]
-# list => index 0 =A; index 1 =B; index 2 = c; index 3 = d
 
 # dataloader for baseline training
 class DataLoader(keras.utils.Sequence):
