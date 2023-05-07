@@ -16,7 +16,6 @@ from utils.utils import get_logger
 from pathlib import Path
 from .cosine_norm import CosineLinear
 from .KD_loss import KDLoss
-from model import KD_loss
 
 class InceptionWithCL:
 
@@ -52,7 +51,7 @@ class InceptionWithCL:
         self.logger = get_logger(self.output_directory, "INCEPTION")
         self.nb_classes = nb_classes
         if build == True:
-            self.model = self.build_model(input_shape, nb_classes, add_CN)
+            self.model = self.build_model(input_shape, self.nb_classes, add_CN)
             if (verbose == True):
                 self.logger.info(self.model.summary())
             self.verbose = verbose
@@ -129,8 +128,9 @@ class InceptionWithCL:
             tf.keras.metrics.CategoricalAccuracy(name="accuracy"),
             tfa.metrics.F1Score(num_classes=nb_classes, average='macro', name='f1_score')
         ]
+        loss_func = tf.keras.losses.CategoricalCrossentropy()
         # define loss function
-        model.compile(loss=self.loss_func, optimizer=keras.optimizers.Adam(),
+        model.compile(loss=loss_func, optimizer=keras.optimizers.Adam(),
                       metrics=metrics)
         # don't need to modify anything down below
         reduce_lr = keras.callbacks.ReduceLROnPlateau(monitor='loss', factor=0.5, patience=50,
@@ -167,39 +167,110 @@ class InceptionWithCL:
         keras.backend.clear_session()
 
         return self.model
-
-
-    # given a trained model, modify the last layer to output nb_classes, add KD loss
-    def update_model_with_new_class(self, nb_classes, prev_model):
+    
+    def fit_kd(self, train_data_generator, valid_data_generator, prev_model):
         # remove the last layer of the model
         gap_layer = self.model.layers[-2].output
         output_layer = CosineLinear(in_features=gap_layer.shape[-1], 
-                                    out_features = nb_classes)(gap_layer)
-        model = keras.models.Model(inputs=self.model.input, outputs=output_layer)
+                                    out_features = self.nb_classes)(gap_layer)
+        self.model = keras.models.Model(inputs=self.model.input, outputs=output_layer)
+        if not tf.test.is_built_with_cuda():
+            raise Exception('error no gpu')
+        
+        # kd_loss:
+        kd_loss = KDLoss(prev_model)
         # define the metrics.
         metrics = [
             tf.keras.metrics.Precision(name='precision'),
             tf.keras.metrics.Recall(name='recall'),
             tf.keras.metrics.CategoricalAccuracy(name="accuracy"),
-            tfa.metrics.F1Score(num_classes=nb_classes, average='macro', name='f1_score')
+            tfa.metrics.F1Score(num_classes=self.nb_classes, average='macro', name='f1_score')
         ]
-        # define new loss function
-        kd_loss = KD_loss.KDLoss(prev_model)
-        model.compile(loss=kd_loss, optimizer=keras.optimizers.Adam(),
-                      metrics=metrics)
-        # don't need to modify anything down below
-        reduce_lr = keras.callbacks.ReduceLROnPlateau(monitor='loss', factor=0.5, patience=50,
+        lr_scheduler = keras.callbacks.ReduceLROnPlateau(monitor='loss', factor=0.5, patience=50,
                                                       min_lr=0.0001)
-        weight_format = 'epoch-{epoch:02d}-val_acc-{val_accuracy:.4f}-train_acc-{accuracy:.4f}-precision-{precision:.4f}-recall-{recall:.4f}.h5'
-        file_path = self.output_directory / weight_format
+        # Compile the student model with the optimizer and the custom KD loss
+        self.model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=1e-4),
+                                   loss=kd_loss,
+                                   metrics=metrics)
+        logs = {}
+        # train the student model
+        for epoch in range(self.nb_epochs):
+            # Training loop
+            train_losses = []
+            train_acc = []
+            for step, (x_batch, y_batch) in enumerate(train_data_generator):
+                with tf.GradientTape() as tape:
+                    logits = self.model(x_batch, training=True)
+                    loss_value = kd_loss(y_true=y_batch, y_pred=logits, inputs=x_batch)
 
-        model_checkpoint = keras.callbacks.ModelCheckpoint(filepath=file_path, monitor='loss',
-                                                           save_best_only=False)
-        my_callback = TrainingCallback(self.output_directory, "Training")
-        self.callbacks = [reduce_lr, model_checkpoint, my_callback]
-        self.logger.info(model.summary())
-        self.model = model
-        return model
+                grads = tape.gradient(loss_value, self.model.trainable_weights)
+                self.model.optimizer.apply_gradients(zip(grads, self.model.trainable_weights))
+                train_losses.append(loss_value)
+                train_acc.append(tf.keras.metrics.categorical_accuracy(y_batch, logits))  
+            logs['loss'] = tf.reduce_mean(train_losses).numpy()
+            logs['accuracy'] = tf.reduce_mean(train_acc).numpy()
+            # update learning rate
+            lr_scheduler.on_epoch_end(epoch, logs)
+            self.model.optimizer.lr = lr_scheduler._get_new_lr(epoch, logs)
+            
+            # Validation loop
+            valid_losses = []
+            valid_accuracies = []
+            for x_val, y_val in valid_data_generator:
+                val_logits = self.model(x_val, training=False)
+                val_loss = kd_loss(inputs=x_val, y_true=y_val, student_pred=val_logits)
+                val_accuracy = tf.keras.metrics.categorical_accuracy(y_val, val_logits)
+
+                valid_losses.append(val_loss.numpy())
+                valid_accuracies.append(val_accuracy.numpy())
+
+            valid_loss = tf.reduce_mean(valid_losses).numpy()
+            valid_accuracy = tf.reduce_mean(valid_accuracies).numpy()
+            logs['val_loss'] = valid_loss
+            logs['val_accuracy'] = valid_accuracy
+            self.on_epoch_end(epoch, logs)
+        self.model.save(self.output_directory / 'last_model.hdf5')
+        tf.keras.backend.clear_session()
+        return self.model
+    
+    def on_epoch_end(self, epoch, logs):
+        weight_format = f"epoch-{epoch:02d}-val_acc-{logs['val_accuracy']:.4f}-train_acc-{logs['accuracy']:.4f}-precision-{logs['precision']:.4f}-recall-{logs['recall']:.4f}.h5"
+        file_path = self.output_directory / weight_format
+        self.model.save(file_path)
+        self.logger.info(logs)
+
+
+    # given a trained model, modify the last layer to output nb_classes, add KD loss
+    # def update_model_with_new_class(self, nb_classes, prev_model):
+    #     # remove the last layer of the model
+    #     gap_layer = self.model.layers[-2].output
+    #     output_layer = CosineLinear(in_features=gap_layer.shape[-1], 
+    #                                 out_features = nb_classes)(gap_layer)
+    #     model = keras.models.Model(inputs=self.model.input, outputs=output_layer)
+    #     # define the metrics.
+    #     metrics = [
+    #         tf.keras.metrics.Precision(name='precision'),
+    #         tf.keras.metrics.Recall(name='recall'),
+    #         tf.keras.metrics.CategoricalAccuracy(name="accuracy"),
+    #         tfa.metrics.F1Score(num_classes=nb_classes, average='macro', name='f1_score')
+    #     ]
+    #     # define new loss function
+    #     kd_loss = KDLoss(prev_model)
+    #     model.compile(loss=kd_loss, optimizer=keras.optimizers.Adam(),
+    #                   metrics=metrics)
+    #     # don't need to modify anything down below
+    #     reduce_lr = keras.callbacks.ReduceLROnPlateau(monitor='loss', factor=0.5, patience=50,
+    #                                                   min_lr=0.0001)
+    #     weight_format = 'epoch-{epoch:02d}-val_acc-{val_accuracy:.4f}-train_acc-{accuracy:.4f}-precision-{precision:.4f}-recall-{recall:.4f}.h5'
+    #     file_path = self.output_directory / weight_format
+
+    #     model_checkpoint = keras.callbacks.ModelCheckpoint(filepath=file_path, monitor='loss',
+    #                                                        save_best_only=False)
+    #     my_callback = TrainingCallback(self.output_directory, "Training")
+    #     self.callbacks = [reduce_lr, model_checkpoint, my_callback]
+    #     self.logger.info(model.summary())
+    #     self.model = model
+    #     return model
     
     def load_model_from_weights(self, weights_path):
         self.logger.info(f"Loading model from weights at {weights_path.as_posix()}")

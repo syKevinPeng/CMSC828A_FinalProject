@@ -11,10 +11,10 @@ class KDLoss(tf.keras.losses.Loss):
         # Ensure the teacher model is not trainable
         self.teacher_model.trainable = False
 
-    def call(self, y_true, student_pred):
-        task_loss = tf.keras.losses.sparse_categorical_crossentropy(y_true, student_pred, from_logits=True)
+    def call(self, y_true, student_pred,inputs):
+        task_loss = tf.keras.losses.categorical_crossentropy(y_true, student_pred)
 
-        teacher_pred = self.teacher_model(student_pred)
+        teacher_pred = self.teacher_model(inputs, training=False)
         student_prob = tf.nn.softmax(student_pred / self.temperature, axis=-1)
         teacher_prob = tf.nn.softmax(teacher_pred / self.temperature, axis=-1)
         kd_loss = tf.keras.losses.categorical_crossentropy(teacher_prob, student_prob, from_logits=False)
@@ -23,3 +23,5 @@ class KDLoss(tf.keras.losses.Loss):
         total_loss = task_loss + kd_loss
         return total_loss
 
+    def __call__(self, y_true, y_pred,inputs, **kwargs):
+        return super(KDLoss, self).__call__(y_true, y_pred, inputs=inputs, **kwargs)
