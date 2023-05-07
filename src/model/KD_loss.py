@@ -1,26 +1,25 @@
 import tensorflow as tf
 
-def kd_loss(student_logits, teacher_logits, temperature=1.0, alpha=0.1):
-    """
-    Compute the knowledge distillation loss.
-    
-    Args:
-        student_logits (tf.Tensor): Logits from the student model.
-        teacher_logits (tf.Tensor): Logits from the teacher model.
-        temperature (float, optional): Temperature for softmax. Defaults to 1.0.
-        alpha (float, optional): Weight for the KD loss. Defaults to 0.1.
-        
-    Returns:
-        The KD loss.
-    """
-    # Apply temperature to logits and compute softmax
-    student_probs = tf.nn.softmax(student_logits / temperature)
-    teacher_probs = tf.nn.softmax(teacher_logits / temperature)
 
-    # Compute KL divergence between teacher and student distributions
-    kl_div = tf.keras.losses.KLDivergence()(teacher_probs, student_probs)
-    
-    # Scale the KL divergence by the temperature squared and alpha
-    scaled_kl_div = alpha * kl_div * (temperature ** 2)
-    
-    return scaled_kl_div
+class KDLoss(tf.keras.losses.Loss):
+    def __init__(self, teacher_model, temperature=1.0, alpha=0.1, **kwargs):
+        super(KDLoss, self).__init__(**kwargs)
+        self.teacher_model = teacher_model
+        self.temperature = temperature
+        self.alpha = alpha
+
+        # Ensure the teacher model is not trainable
+        self.teacher_model.trainable = False
+
+    def call(self, y_true, student_pred):
+        task_loss = tf.keras.losses.sparse_categorical_crossentropy(y_true, student_pred, from_logits=True)
+
+        teacher_pred = self.teacher_model(student_pred)
+        student_prob = tf.nn.softmax(student_pred / self.temperature, axis=-1)
+        teacher_prob = tf.nn.softmax(teacher_pred / self.temperature, axis=-1)
+        kd_loss = tf.keras.losses.categorical_crossentropy(teacher_prob, student_prob, from_logits=False)
+        kd_loss *= self.alpha * self.temperature**2
+
+        total_loss = task_loss + kd_loss
+        return total_loss
+

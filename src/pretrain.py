@@ -1,8 +1,9 @@
 import pathlib, datetime
 from dataloader import PrepareDataLoader
-from model import inception, inception_cl
+from model import inception, inception_cl, KD_loss
 from utils.utils import get_logger
 import numpy as np
+from tensorflow import keras
 
 
 class Trainer:
@@ -87,7 +88,7 @@ class Trainer:
                                                                 nb_epochs = nb_epochs,
                                                                 use_bottleneck = False,
                                                                 add_CN = False) # do not use cosline normalziaton in first iter
-        model.fit(train_df, valid_df)
+        prev_model = model.fit(train_df, valid_df)
         self.logger.info(f"End training : {seen_label}")
         self.logger.info(f"End 1st iteration")
         # ---- second and following iter -----
@@ -104,7 +105,7 @@ class Trainer:
             # construct output file
             _add_CN = False if len(seen_label) == 2 else True
             seen_label = np.append(seen_label, label)
-            output_dir = self.output_dir/"-".join(seen_label)
+            output_dir = self.output_dir/"-".join(seen_label)  
             model = inception_cl.InceptionWithCL(output_dir, input_shape, nb_classes,
                                                                 verbose=False, 
                                                                 build=True, 
@@ -115,16 +116,18 @@ class Trainer:
             model.load_model_from_weights(prev_weights_path)
             # update seen label and the last layer of the model: output class + 1
             new_nb_classes = len(seen_label)
-            model.add_new_class(new_nb_classes) # update last layer
+            model.update_model_with_new_class(new_nb_classes, prev_model = prev_model) # update last layer
             # get train data for the seen labels
             self.logger.info(f"Loading data of label {seen_label} ...")
             train_df, valid_df= dataloader.load_pretrain_data(
                                                                                     labels = seen_label, 
                                                                                     model_type = 'cl', 
                                                                                     new_class = [label])
-            model.fit(train_df, valid_df)
+            prev_model = model.fit(train_df, valid_df)
             self.logger.info(f"End training : {seen_label}")
         self.logger.info("---- End training ----")
+
+        # TODO: change the label of the prediction and ground truth to all class
 
 
     

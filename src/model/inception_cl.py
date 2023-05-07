@@ -15,10 +15,12 @@ import tensorflow_addons as tfa
 from utils.utils import get_logger
 from pathlib import Path
 from .cosine_norm import CosineLinear
+from .KD_loss import KDLoss
+from model import KD_loss
 
 class InceptionWithCL:
 
-    def __init__(self, output_directory, input_shape, nb_classes, verbose=False, build=True, batch_size=1,
+    def __init__(self, output_directory, input_shape, nb_classes,verbose=False, build=True, batch_size=1,
                  nb_filters=32, use_residual=True, use_bottleneck=True, depth=6, kernel_size=41, nb_epochs=1500, add_CN=False):
         '''
         :param output_directory: directory to save the model
@@ -48,6 +50,7 @@ class InceptionWithCL:
         self.bottleneck_size = 32
         self.nb_epochs = nb_epochs
         self.logger = get_logger(self.output_directory, "INCEPTION")
+        self.nb_classes = nb_classes
         if build == True:
             self.model = self.build_model(input_shape, nb_classes, add_CN)
             if (verbose == True):
@@ -127,7 +130,7 @@ class InceptionWithCL:
             tfa.metrics.F1Score(num_classes=nb_classes, average='macro', name='f1_score')
         ]
         # define loss function
-        model.compile(loss='categorical_crossentropy', optimizer=keras.optimizers.Adam(),
+        model.compile(loss=self.loss_func, optimizer=keras.optimizers.Adam(),
                       metrics=metrics)
         # don't need to modify anything down below
         reduce_lr = keras.callbacks.ReduceLROnPlateau(monitor='loss', factor=0.5, patience=50,
@@ -142,15 +145,20 @@ class InceptionWithCL:
 
         return model
 
-    def fit(self, train_dataloader, valid_dataloader, plot_test_acc=False, save_log = False):
+    def fit(self, train_data_generator, valid_data_generator):
+        '''
+        train_data_generator: a generator that generates training data
+        valid_data_generator: a generator that generates validation data
+        '''
+
         if not tf.test.is_built_with_cuda():
             raise Exception('error no gpu')
         # x_val and y_val are only used to monitor the test loss and NOT for training
 
 
         start_time = time.time()
-        hist = self.model.fit(x=train_dataloader, epochs=self.nb_epochs,
-                                  verbose=self.verbose, validation_data=valid_dataloader, callbacks=self.callbacks)
+        hist = self.model.fit(x=train_data_generator, epochs=self.nb_epochs,
+                                  verbose=self.verbose, validation_data=valid_data_generator, callbacks=self.callbacks)
         duration = time.time() - start_time
         self.logger.info(f"Training time: {duration} seconds")
         self.model.save(self.output_directory /f'last_model.hdf5')
@@ -160,8 +168,9 @@ class InceptionWithCL:
 
         return self.model
 
-    # given a trained model, modify the last layer to output nb_classes
-    def add_new_class(self, nb_classes):
+
+    # given a trained model, modify the last layer to output nb_classes, add KD loss
+    def update_model_with_new_class(self, nb_classes, prev_model):
         # remove the last layer of the model
         gap_layer = self.model.layers[-2].output
         output_layer = CosineLinear(in_features=gap_layer.shape[-1], 
@@ -174,8 +183,9 @@ class InceptionWithCL:
             tf.keras.metrics.CategoricalAccuracy(name="accuracy"),
             tfa.metrics.F1Score(num_classes=nb_classes, average='macro', name='f1_score')
         ]
-        # define loss function
-        model.compile(loss='categorical_crossentropy', optimizer=keras.optimizers.Adam(),
+        # define new loss function
+        kd_loss = KD_loss.KDLoss(prev_model)
+        model.compile(loss=kd_loss, optimizer=keras.optimizers.Adam(),
                       metrics=metrics)
         # don't need to modify anything down below
         reduce_lr = keras.callbacks.ReduceLROnPlateau(monitor='loss', factor=0.5, patience=50,
