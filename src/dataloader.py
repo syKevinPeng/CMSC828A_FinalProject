@@ -96,9 +96,11 @@ class PrepareDataLoader():
 
             return cl_dataloader_train, cl_dataloader_valid
         elif model_type == "MTL":
-            # TODO
-            raise NotImplementedError
-    
+            train_df, valid_df = self.prepare_data_split()
+            # Convert data to batches  Temporary solution to see if things work
+            dataloader_train = DataLoader(train_df, self.experiment_config, labels)
+            dataloader_valid = DataLoader(valid_df, self.experiment_config, labels)
+            return dataloader_train, dataloader_valid
     # read the csv reserved data
     def load_reserved_data(self, labels):
         data_path = Path(self.preprocess_config["extrasensory_preprocessor"]["out"]['dir'])/f'herd_samples.csv'
