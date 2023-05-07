@@ -20,7 +20,7 @@ from .KD_loss import KDLoss
 class InceptionWithCL:
 
     def __init__(self, output_directory, input_shape, nb_classes,verbose=False, build=True, batch_size=1,
-                 nb_filters=32, use_residual=True, use_bottleneck=True, depth=6, kernel_size=41, nb_epochs=1500, add_CN=False):
+                 nb_filters=32, use_residual=True, use_bottleneck=True, depth=6, kernel_size=41, nb_epochs=1500, add_CN=False, lr = 0.0001):
         '''
         :param output_directory: directory to save the model
         :param input_shape: [8, 3, 1]
@@ -50,6 +50,7 @@ class InceptionWithCL:
         self.nb_epochs = nb_epochs
         self.logger = get_logger(self.output_directory, "INCEPTION")
         self.nb_classes = nb_classes
+        self.lr = lr
         if build == True:
             self.model = self.build_model(input_shape, self.nb_classes, add_CN)
             if (verbose == True):
@@ -130,7 +131,7 @@ class InceptionWithCL:
         ]
         loss_func = tf.keras.losses.CategoricalCrossentropy()
         # define loss function
-        model.compile(loss=loss_func, optimizer=keras.optimizers.Adam(),
+        model.compile(loss=loss_func, optimizer=keras.optimizers.Adam(learning_rate=self.lr),
                       metrics=metrics)
         # don't need to modify anything down below
         reduce_lr = keras.callbacks.ReduceLROnPlateau(monitor='loss', factor=0.5, patience=50,
@@ -186,10 +187,8 @@ class InceptionWithCL:
             tf.keras.metrics.CategoricalAccuracy(name="accuracy"),
             tfa.metrics.F1Score(num_classes=self.nb_classes, average='macro', name='f1_score')
         ]
-        lr_scheduler = keras.callbacks.ReduceLROnPlateau(monitor='loss', factor=0.5, patience=50,
-                                                      min_lr=0.0001)
         # Compile the student model with the optimizer and the custom KD loss
-        self.model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=1e-4),
+        self.model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=self.lr),
                                    loss=kd_loss,
                                    metrics=metrics)
         logs = {}
@@ -201,7 +200,8 @@ class InceptionWithCL:
             for step, (x_batch, y_batch) in enumerate(train_data_generator):
                 with tf.GradientTape() as tape:
                     logits = self.model(x_batch, training=True)
-                    loss_value = kd_loss(y_true=y_batch, y_pred=logits, inputs=x_batch)
+                    kd_loss.set_param(x_batch)
+                    loss_value = kd_loss(y_true=y_batch, y_pred=logits)
 
                 grads = tape.gradient(loss_value, self.model.trainable_weights)
                 self.model.optimizer.apply_gradients(zip(grads, self.model.trainable_weights))
@@ -210,8 +210,6 @@ class InceptionWithCL:
             logs['loss'] = tf.reduce_mean(train_losses).numpy()
             logs['accuracy'] = tf.reduce_mean(train_acc).numpy()
             # update learning rate
-            lr_scheduler.on_epoch_end(epoch, logs)
-            self.model.optimizer.lr = lr_scheduler._get_new_lr(epoch, logs)
             
             # Validation loop
             valid_losses = []

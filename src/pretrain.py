@@ -17,6 +17,7 @@ class Trainer:
             raise ValueError(f"Model type {self.model_type} not supported")
         self.universal_label = self.pretrain_config['universal_label']
         self.debug = self.experiment_config["debug"]
+        self.learning_rate = self.experiment_config["learning_rate"]
     
     def train(self):
         if self.model_type in ['bl', 'baseline', 'Baseline']:
@@ -47,7 +48,8 @@ class Trainer:
                                                                 verbose=verbose, 
                                                                 build=True, 
                                                                 nb_epochs = nb_epochs,
-                                                                use_bottleneck = False
+                                                                use_bottleneck = False,
+                                                                lr = self.learning_rate
                                                                 )
         self.logger.info("---- Start training ----") 
         model.fit(train_dataloader, valid_dataloader)
@@ -116,12 +118,9 @@ class Trainer:
                                                                 batch_size=batch_size,
                                                                 nb_epochs = nb_epochs,
                                                                 use_bottleneck = False,
-                                                                add_CN = _add_CN) # use cosline normalziaton in second and following iter
+                                                                add_CN = _add_CN,
+                                                                lr=self.learning_rate) # use cosline normalziaton in second and following iter
             model.load_model_from_weights(prev_weights_path)
-            # update seen label and the last layer of the model: output class + 1
-            # new_nb_classes = len(seen_label)
-            # model.update_model_with_new_class(len(self.universal_label), prev_model = prev_model) # update last layer
-            # get train data for the seen labels
             self.logger.info(f"Loading data of label {seen_label} ...")
             train_df, valid_df= dataloader.load_pretrain_data(
                                                                                     labels = seen_label, 
