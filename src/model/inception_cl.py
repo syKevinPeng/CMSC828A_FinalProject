@@ -1,6 +1,7 @@
 # Modified based on https://github.com/hfawaz/InceptionTime/blob/master/classifiers/inception.py
 
 # resnet model
+from math import log
 import pathlib
 from sklearn.metrics import f1_score
 from tensorflow import keras
@@ -180,62 +181,79 @@ class InceptionWithCL:
         
         # kd_loss:
         kd_loss = KDLoss(prev_model)
-        # define the metrics.
-        metrics = [
-            tf.keras.metrics.Precision(name='precision'),
-            tf.keras.metrics.Recall(name='recall'),
-            tf.keras.metrics.CategoricalAccuracy(name="accuracy"),
-            tfa.metrics.F1Score(num_classes=self.nb_classes, average='macro', name='f1_score')
-        ]
-        # Compile the student model with the optimizer and the custom KD loss
-        self.model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=self.lr),
-                                   loss=kd_loss,
-                                   metrics=metrics)
+        optimizer = tf.keras.optimizers.Adam(learning_rate=self.lr)
         logs = {}
         # train the student model
         for epoch in range(self.nb_epochs):
-            # Training loop
-            train_losses = []
-            train_acc = []
-            for step, (x_batch, y_batch) in enumerate(train_data_generator):
+            # define metrics
+            train_loss_avg = tf.keras.metrics.Mean(name='train_loss')
+            train_accuracy = tf.keras.metrics.CategoricalAccuracy(name='train_accuracy')
+            train_recall = tf.keras.metrics.Recall(name='recall')
+            train_precision = tf.keras.metrics.Precision(name='precision')
+            train_f1 = tfa.metrics.F1Score(num_classes=self.nb_classes, average='macro', name='f1_score')
+            def update_train_metrics(y_true, y_pred):
+                train_loss_avg.update_state(y_true, y_pred)
+                train_accuracy.update_state(y_true, y_pred)
+                train_recall.update_state(y_true, y_pred)
+                train_precision.update_state(y_true, y_pred)
+                train_f1.update_state(y_true, y_pred)
+
+            for _, (x_batch, y_batch) in enumerate(train_data_generator):
                 with tf.GradientTape() as tape:
                     logits = self.model(x_batch, training=True)
                     kd_loss.set_param(x_batch)
                     loss_value = kd_loss(y_true=y_batch, y_pred=logits)
 
                 grads = tape.gradient(loss_value, self.model.trainable_weights)
-                self.model.optimizer.apply_gradients(zip(grads, self.model.trainable_weights))
-                train_losses.append(loss_value)
-                train_acc.append(tf.keras.metrics.categorical_accuracy(y_batch, logits))  
-            logs['loss'] = tf.reduce_mean(train_losses).numpy()
-            logs['accuracy'] = tf.reduce_mean(train_acc).numpy()
-            # update learning rate
-            
+                optimizer.apply_gradients(zip(grads, self.model.trainable_weights))
+                # update metrics
+                update_train_metrics(y_batch, logits)
+
+            #  -------------------------
             # Validation loop
-            valid_losses = []
-            valid_accuracies = []
+            val_loss_avg = tf.keras.metrics.Mean(name='train_loss')
+            val_accuracy = tf.keras.metrics.CategoricalAccuracy(name='train_accuracy')
+            val_recall = tf.keras.metrics.Recall(name='recall')
+            val_precision = tf.keras.metrics.Precision(name='precision')
+            val_f1 = tfa.metrics.F1Score(num_classes=self.nb_classes, average='macro', name='f1_score')
+            def update_val_metrics(y_true, y_pred):
+                val_loss_avg.update_state(y_true, y_pred)
+                val_accuracy.update_state(y_true, y_pred)
+                val_recall.update_state(y_true, y_pred)
+                val_precision.update_state(y_true, y_pred)
+                val_f1.update_state(y_true, y_pred)
+
             for x_val, y_val in valid_data_generator:
                 val_logits = self.model(x_val, training=False)
-                val_loss = kd_loss(inputs=x_val, y_true=y_val, student_pred=val_logits)
-                val_accuracy = tf.keras.metrics.categorical_accuracy(y_val, val_logits)
-
-                valid_losses.append(val_loss.numpy())
-                valid_accuracies.append(val_accuracy.numpy())
-
-            valid_loss = tf.reduce_mean(valid_losses).numpy()
-            valid_accuracy = tf.reduce_mean(valid_accuracies).numpy()
-            logs['val_loss'] = valid_loss
-            logs['val_accuracy'] = valid_accuracy
+                kd_loss.set_param(x_batch)
+                val_loss = kd_loss(y_true=y_batch, y_pred=logits)
+                # update metrics
+                update_val_metrics(y_val, val_logits)
+            logs[f'epoch:{epoch}'] = {
+                'train_loss': train_loss_avg.result().numpy(),
+                'train_accuracy': train_accuracy.result().numpy(),
+                'train_recall': train_recall.result().numpy(),
+                'train_precision': train_precision.result().numpy(),
+                'train_f1': train_f1.result().numpy(),
+                'val_loss': val_loss_avg.result().numpy(),
+                'val_accuracy': val_accuracy.result().numpy(),
+                'val_recall': val_recall.result().numpy(),
+                'val_precision': val_precision.result().numpy(),
+                'val_f1': val_f1.result().numpy()
+            }
             self.on_epoch_end(epoch, logs)
         self.model.save(self.output_directory / 'last_model.hdf5')
         tf.keras.backend.clear_session()
         return self.model
     
     def on_epoch_end(self, epoch, logs):
-        weight_format = f"epoch-{epoch:02d}-val_acc-{logs['val_accuracy']:.4f}-train_acc-{logs['accuracy']:.4f}-precision-{logs['precision']:.4f}-recall-{logs['recall']:.4f}.h5"
+        # get the metrics
+        metrics = logs[f'epoch:{epoch}']
+        weight_format = f"epoch-{epoch:02d}-acc-{metrics['val_accuracy']:.4f}-precision-{metrics['val_precision']:.4f}-recall-{metrics['val_recall']:.4f}.h5"
         file_path = self.output_directory / weight_format
         self.model.save(file_path)
-        self.logger.info(logs)
+        for metrics in logs[f'epoch:{epoch}']:
+            self.logger.info(f'{metrics}: {logs[f"epoch:{epoch}"][metrics]}')
 
 
     # given a trained model, modify the last layer to output nb_classes, add KD loss
