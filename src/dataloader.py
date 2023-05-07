@@ -1,11 +1,10 @@
+from re import A
 import pandas as pd
 import numpy as np
+from regex import B
 
 import tensorboard as tf
 import sys
-
-from regex import F
-from dataa_generator import DataLoader
 sys.path.insert(0,'../preprocess')
 from preprocess import extrasensory
 from pathlib import Path
@@ -64,19 +63,25 @@ class PrepareDataLoader():
         if save_df: es_processor.save_df(es_df, save_dir = dir)
         return es_df
     
-    def load_pretrain_data(self, labels:list, model_type):
+    def load_pretrain_data(self, labels:list, model_type, new_class = [None]):
+        '''
+        param:
+        labels: the Y labels to be outputed (i.e. total number of class)
+        model_type: specify one of ['baseline', 'cl', 'mtl']
+        new_class: ONLY used in continue learning. This is the new class added to the training pipeline. The data generator should only output X in 'newclass', but y in all 'labels'
+        '''
         if model_type == 'baseline':
             train_df, valid_df = self.prepare_data_split()
+            # Convert data to batches
             dataloader_train = DataLoader(train_df, self.experiment_config, labels)
             dataloader_valid = DataLoader(valid_df, self.experiment_config, labels)
             return dataloader_train, dataloader_valid
         if model_type == "cl": # output dataset per label
-            # get herd selection data
             # load heard_selection data
             herd_data, herd_index = self.load_reserved_data(labels)
             train_df, valid_df = self.prepare_data_split_with_herd(herd_index)
-            # select rows where any of the "labels" columns is 1
-            train_df = train_df[train_df[labels].any(axis=1)]
+            # select rows where "new_class" columns is 1
+            train_df = train_df[train_df[new_class].any(axis=1)].reset_index()
             valid_df = valid_df[valid_df[labels].any(axis=1)]
             herd_df = herd_data[herd_data[labels].any(axis=1)]
 
@@ -87,7 +92,7 @@ class PrepareDataLoader():
 
             # simple combination strategy: need modificaiton later
             cl_dataloader_train = CLDataLoader(train_df, herd_df, self.experiment_config, labels)
-            cl_dataloader_valid = DataLoader(valid_df, herd_df, self.experiment_config, labels)
+            cl_dataloader_valid = DataLoader(valid_df, self.experiment_config, labels)
 
             return cl_dataloader_train, cl_dataloader_valid
         elif model_type == "MTL":
@@ -143,7 +148,6 @@ class PrepareDataLoader():
         # remove the valid index from the dataset
         train_df = self.datasets.drop(valid_index)
         return train_df, valid_df
-    
 
 # dataloader for baseline training
 class DataLoader(keras.utils.Sequence):
@@ -164,12 +168,12 @@ class DataLoader(keras.utils.Sequence):
         if len(x.shape) == 2: 
             x = x.reshape((x.shape[0], x.shape[1], 1))
         return x, y
-
+    
 # dataloader used for CL training, specifically it merge the reserved data and the current batch data
 class CLDataLoader(keras.utils.Sequence):
     def __init__(self, input_df:pd.DataFrame, herd_df:pd.DataFrame,experiment_config, labels):
         self.input_df = input_df
-        self.herd_df = herd_df
+        self.herd_df = herd_df.reset_index()
         self.reserve_indexes = np.arange(len(herd_df))
         self.total_reserve_len = len(herd_df)
         self.batch_size = experiment_config['batch_size']
@@ -185,7 +189,6 @@ class CLDataLoader(keras.utils.Sequence):
         old_indexes = self.indexes[index*old_batch_size:(index+1)*old_batch_size]
         curr_reserved_ind = index%self.total_reserve_len
         reserve_indexes = self.reserve_indexes[curr_reserved_ind*reserve_batch_size:(curr_reserved_ind+1)*reserve_batch_size]
-
         x, y = self.__data_generation_train(old_indexes)
         x_reserve, y_reserve = self.__data_generation_herd(reserve_indexes)
         x = np.concatenate((x, x_reserve), axis=0)
@@ -196,10 +199,12 @@ class CLDataLoader(keras.utils.Sequence):
     
     
     def __data_generation_train(self, indexes):
-        x = self.train_df.iloc[indexes][['x', 'y', 'z']].to_numpy()
-        y = self.train_df.iloc[indexes][self.labels].to_numpy()
+        index = self.input_df.index[indexes]
+        x = self.input_df.loc[index, ['x', 'y', 'z']].to_numpy()
+        y = self.input_df.loc[index, self.labels].to_numpy()
         return x, y
     def __data_generation_herd(self, indexes):
-        x = self.herd_df.iloc[indexes][['x', 'y', 'z']].to_numpy()
-        y = self.herd_df.iloc[indexes][self.labels].to_numpy()
+        index = self.input_df.index[indexes]
+        x = self.herd_df.loc[index, ['x', 'y', 'z']].to_numpy()
+        y = self.herd_df.loc[index, self.labels].to_numpy()
         return x, y

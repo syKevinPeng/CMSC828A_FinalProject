@@ -57,7 +57,7 @@ experiment:
   batch_size: 8
   valid_raio: 0.1 # the portion of data to be used for validation
   verbose: true # whether to explicitly print out training progress
-  model_type: "baseline" # one of ["baseline","CL", "MTL"]
+  model_type: "cl" # one of ["baseline","cl", "mtl"]
 
   # debug # only run 100 training and validation samples
   debug: true
