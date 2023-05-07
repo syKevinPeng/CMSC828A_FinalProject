@@ -1,9 +1,10 @@
 import pathlib, datetime
-from dataloader import Dataloader
-from model import inception
-from sklearn.model_selection import train_test_split
+from dataloader import PrepareDataLoader
+from model import inception, inception_cl, KD_loss
 from utils.utils import get_logger
 import numpy as np
+from tensorflow import keras
+
 
 class Trainer:
     def __init__(self, experiment_config, pretrain_config):
@@ -11,41 +12,130 @@ class Trainer:
         self.pretrain_config = pretrain_config
         self.output_dir = pathlib.Path(self.experiment_config["output_directory"])/self.experiment_config['exp_name']
         self.logger = get_logger(self.output_dir, "Trainer")
+        self.model_type = self.experiment_config["model_type"]
+        if self.model_type not in ['baseline', 'cl', 'mtl']:
+            raise ValueError(f"Model type {self.model_type} not supported")
+        self.universal_label = self.pretrain_config['universal_label']
     
     def train(self):
+        if self.model_type in ['bl', 'baseline', 'Baseline']:
+            self.train_baseline()
+        elif self.model_type in ['cl', 'CL','ContinueLearning']:
+            self.train_cl()
+        elif self.model_type in ['mtl', 'MTL','MultitaskLearning']:
+            self.train_mtl()
+        else:
+            raise ValueError(f"Model type {self.model_type} not supported")
+
+    # training code for baseline model
+    def train_baseline(self):
+        batch_size = self.experiment_config["batch_size"]
+        nb_epochs = self.experiment_config["training_epochs"]
+        verbose = self.experiment_config["verbose"]
         # load data
-        dataloader = Dataloader(self.pretrain_config, self.experiment_config)
-        all_labels = self.pretrain_config['universal_label']
+        dataloader = PrepareDataLoader(self.pretrain_config, self.experiment_config)
         self.logger.info(f"Loading data ...")
-        X, y = dataloader.load_pretrain_data(label = all_labels, model_type = self.experiment_config["model_type"])
-        # convert to numpy array
-        X = X.to_numpy()
-        y = y.to_numpy()
-        # split data
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=10, random_state=42)
-        # convert one-hot to label
-        y_true = np.argmax(y_test, axis=1)
-        # TODO: Split data into balanced train and validation
+        train_dataloader, valid_dataloader  = dataloader.load_pretrain_data(labels = self.universal_label, model_type = "baseline")
         if not self.output_dir.is_dir():
             self.logger.warning(f"Parent directory {self.output_dir} not found. Creating directory")
             self.output_dir.mkdir(parents=True, exist_ok=True)
-        nb_classes = len(all_labels)
+        nb_classes = len(self.universal_label)
+
+        input_shape =(3,1)
+        ## DO NOT SET BATCH SIZE HERE
+        model = inception.Classifier_INCEPTION(self.output_dir, input_shape, nb_classes,
+                                                                verbose=verbose, 
+                                                                build=True, 
+                                                                nb_epochs = nb_epochs,
+                                                                use_bottleneck = False
+                                                                )
+        self.logger.info("---- Start training ----") 
+        model.fit(train_dataloader, valid_dataloader)
+        self.logger.info("---- End training ----")
+
+    def train_cl(self):
+        # initialize dataloader
+        dataloader = PrepareDataLoader(self.pretrain_config, self.experiment_config)
+        all_labels = self.pretrain_config['universal_label']
         batch_size = self.experiment_config["batch_size"]
         nb_epochs = self.experiment_config["training_epochs"]
+        verbose = self.experiment_config["verbose"]
+
+        # ---- first iter -----
+        print('-'*10)
+        self.logger.info(f"Begin 1st iteration")
+        # sedentary_sitting_other and sedentary_lying are two labels get train first as they have the most number of data
+        seen_label = ['sedentary_sitting_other', 'sedentary_lying']
+        # get train data for the first two labels
+        self.logger.info(f"Loading data of label sedentary_sitting_other and sedentary_lying ...")
+        train_df, valid_df = dataloader.load_pretrain_data(
+                                                                                    labels = seen_label, 
+                                                                                    model_type = 'cl', 
+                                                                                    new_class=seen_label)
+       
+        if not self.output_dir.is_dir():
+            self.logger.warning(f"Parent directory {self.output_dir} not found. Creating directory")
+            self.output_dir.mkdir(parents=True, exist_ok=True)
+        self.logger.info(f"Start training labels: {seen_label}") 
+        nb_classes = len(seen_label)
+
         # add channel dimension if needed
-        if len(X_train.shape) == 2: 
-            X_train = X_train.reshape((X_train.shape[0], X_train.shape[1], 1))
-            X_test = X_test.reshape((X_test.shape[0], X_test.shape[1], 1))
-        input_shape =X_train.shape[1:]
-        model = inception.Classifier_INCEPTION(self.output_dir, input_shape, nb_classes,
+        input_shape =(3,1)
+        output_dir = self.output_dir/"-".join(seen_label)
+        model = inception_cl.InceptionWithCL(output_dir, input_shape, nb_classes,
+                                                                verbose=verbose, 
+                                                                build=True, 
+                                                                nb_epochs = nb_epochs,
+                                                                use_bottleneck = False,
+                                                                add_CN = False) # do not use cosline normalziaton in first iter
+        prev_model = model.fit(train_df, valid_df)
+        self.logger.info(f"End training : {seen_label}")
+        self.logger.info(f"End 1st iteration")
+        # ---- second and following iter -----
+        self.logger.info(f"Begin 2nd and following iteration:")
+        # get unseen label
+        unseen_label = np.setdiff1d(all_labels, seen_label)
+        dataloader = PrepareDataLoader(self.pretrain_config, self.experiment_config)
+        for label in unseen_label:
+            print('-'*10)
+            self.logger.info(f"Start training labels: {np.append(seen_label,label)}") 
+            nb_classes = len(seen_label)
+            prev_weights_path = self.output_dir/"-".join(seen_label)/'last_model.hdf5'
+            input_shape =(3,1)
+            # construct output file
+            _add_CN = False if len(seen_label) == 2 else True
+            seen_label = np.append(seen_label, label)
+            output_dir = self.output_dir/"-".join(seen_label)  
+            model = inception_cl.InceptionWithCL(output_dir, input_shape, nb_classes,
                                                                 verbose=False, 
                                                                 build=True, 
                                                                 batch_size=batch_size,
                                                                 nb_epochs = nb_epochs,
-                                                                use_bottleneck = False)
-        self.logger.info("---- Start training ----") 
-        model.fit(X_train, y_train, X_test, y_test, y_true)
+                                                                use_bottleneck = False,
+                                                                add_CN = _add_CN) # use cosline normalziaton in second and following iter
+            model.load_model_from_weights(prev_weights_path)
+            # update seen label and the last layer of the model: output class + 1
+            new_nb_classes = len(seen_label)
+            model.update_model_with_new_class(new_nb_classes, prev_model = prev_model) # update last layer
+            # get train data for the seen labels
+            self.logger.info(f"Loading data of label {seen_label} ...")
+            train_df, valid_df= dataloader.load_pretrain_data(
+                                                                                    labels = seen_label, 
+                                                                                    model_type = 'cl', 
+                                                                                    new_class = [label])
+            prev_model = model.fit(train_df, valid_df)
+            self.logger.info(f"End training : {seen_label}")
         self.logger.info("---- End training ----")
+
+        # TODO: change the label of the prediction and ground truth to all class
+
+
+    
+    # TODO train multitask learning
+    def train_mtl(self):
+        raise NotImplementedError
+
+
 
 
 

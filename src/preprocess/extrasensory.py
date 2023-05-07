@@ -6,7 +6,8 @@ from datetime import datetime
 import sys 
 import numpy as np
 from pathlib import Path
-
+import logging
+# pd.options.mode.chained_assignment = None
 class ExtrasensoryProcessor(): 
     def __init__(self, config): 
         self.config = config 
@@ -212,6 +213,8 @@ def herd_selection(df:pd.DataFrame, output_dir:Path, logger=None):
     # select a fix number of samples that are closest to the centroid of each old class
     # NUMBER OF SAMPLES TO SELECT
     N = 200 
+    if logger is None:
+        logger = logging.getLogger(__name__)
     logger.info('------ Herd Selection ------')
     logger.info(f'number of reserverd samples for each class to reserve: {N}')
     classes = df.columns[7:].to_numpy()
@@ -222,29 +225,32 @@ def herd_selection(df:pd.DataFrame, output_dir:Path, logger=None):
         label_df = df[df[label] == True]
         print(f'length of {label} is {len(label_df)}')
         # get the centroid of the label
-        label_df_feature = label_df[['x','y','z','ro_xy','ro_xz','ro_yz']]
+        label_df_feature = label_df.loc[:,['x','y','z','ro_xy','ro_xz','ro_yz']]
         centroid = label_df_feature.mean(axis=0)
         # calculate the distance between each row and the centroid
-        label_df['distance'] = label_df_feature.apply(lambda row: np.linalg.norm(row - centroid), axis=1)
+        dist = label_df_feature.apply(lambda row: np.linalg.norm(row - centroid), axis=1).to_numpy()
+        label_df.loc[:, ['distance']] = dist
         # sort the rows by distance
         label_df = label_df.sort_values(by=['distance'])
         # select the first N rows
         label_df = label_df[label_df[label]==True].iloc[:N] # store positive samples
         label_df = label_df.drop(columns=['distance'])
         # reset index
-        label_df = label_df.reset_index(drop=True)
+        # label_df = label_df.reset_index(drop=True)
         # update the df
         reserved_samples[label] = label_df
+        label_col = label_df.loc[:,[label]].to_numpy()
+        if False in label_col: raise Exception('label column should only contain True')
     # concat all the dataframes
+    reserved_index = np.concatenate([df.index for df in reserved_samples.values()], axis=0)
     reserved_df = pd.concat(reserved_samples.values(), ignore_index=True)
     # save the df to csv
-    reserved_df.to_csv(output_dir/'herd_samples.csv', index=False)
-    logger.info(f'herd select data is saved to {output_dir}/herd_samples.csv')
     logger.info('------ Herd Selection Done ------')
+    return reserved_df, reserved_index
 
 
 if __name__ == "__main__":
-    processed_csv = '/home/siyuan/class/cmsc828a_finalproject/datasets/preprocessed/extrasensory/preprocessed_es.csv'
-    output_dir = Path('/home/siyuan/class/cmsc828a_finalproject/datasets/preprocessed/extrasensory')
+    processed_csv = '/fs/class-projects/spring2023/cmsc828a/c828ag04/CMSC828A_FinalProject/datasets/preprocessed/extrasensory/preprocessed_es.csv'
+    output_dir = Path('/fs/class-projects/spring2023/cmsc828a/c828ag04/CMSC828A_FinalProject/datasets/preprocessed/extrasensory')
     df = pd.read_csv(processed_csv)
     herd_selection(df, output_dir)
