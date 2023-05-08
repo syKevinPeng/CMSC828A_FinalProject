@@ -12,6 +12,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", type=str, default="configs/config_siyuan.yaml")
     parser.add_argument("--train", action="store_true")
+    parse.add_argument(f'--finetuning', action='store_true'')
     args = parser.parse_args()
 
     assert args.config, "Please specify the config file"
@@ -26,6 +27,12 @@ def main():
         start_time = time.time()
         config["pretrain"]["start_time"] = start_time
         trainer = pretrain.Trainer(config["experiment"], config["pretrain"])
+        trainer.train()
+    if args.finetuning:
+        log.info(f"==== Finetuning Phase ====")
+        start_time = time.time()
+        config["finetuning"]["start_time"] = start_time
+        trainer = finetuning.Trainer(config["experiment"], config["finetuning"])
         trainer.train()
 
 

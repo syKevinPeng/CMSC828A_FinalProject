@@ -122,8 +122,8 @@ class ExtrasensoryProcessor():
         
         # normalization
         print(type(X_all))
-        for col in X_all.columns:
-            X_all[col] = (X_all[col] - X_all[col].mean()) / X_all[col].std()
+        # for col in X_all.columns:
+        #     X_all[col] = (X_all[col] - X_all[col].mean()) / X_all[col].std()
         return X_all, Y_all
     
     def get_features_from_data(self, users_df):
