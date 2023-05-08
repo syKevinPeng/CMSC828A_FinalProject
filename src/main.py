@@ -18,13 +18,14 @@ def main():
     assert args.config, "Please specify the config file"
     with open(args.config, "r") as f:
         config = yaml.load(f, Loader=yaml.FullLoader)
-    exp_config = config["experiment"]['cur_exp']
-    output_dir = Path(exp_config["output_directory"])/exp_config['exp_name']
-    log = get_logger(output_dir, "main")
-    log.info(f"==== Experiment Config ====\n {exp_config}")
 
     if args.train:
+        exp_config = config['pretrain_exp']
+        output_dir = Path(exp_config["output_directory"])/exp_config['exp_name']
+        log = get_logger(output_dir, "main")
+        log.info(f"==== Experiment Config ====\n {exp_config}")
         log.info(f"==== Training Phase ====")
+        
         start_time = time.time()
         config["pretrain"]["start_time"] = start_time
         trainer = pretrain.Trainer(exp_config, config["pretrain"])
@@ -32,7 +33,12 @@ def main():
         end_time = time.time()
         log.info(f"Overall Training time: {end_time - start_time}")
     if args.finetuning:
+        exp_config = config['finetuning_exp']
+        output_dir = Path(exp_config["output_directory"])/exp_config['exp_name']
+        log = get_logger(output_dir, "main")
+        log.info(f"==== Experiment Config ====\n {exp_config}")
         log.info(f"==== Finetuning Phase ====")
+        
         start_time = time.time()
         config["finetuning"]["start_time"] = start_time
         trainer = finetuning.Trainer(exp_config, config["finetuning"])
