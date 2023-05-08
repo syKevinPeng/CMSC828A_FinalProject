@@ -57,13 +57,13 @@ pretrain: &pretrain
   universal_label: *universal_label
   preprocessing_config: *preprocessing_config
   # Data Preprocessing Related Config
-  dataset: ES # extrasensory dataset
+  dataset: wisdm # extrasensory dataset
 
 finetuning:
   universal_label: *universal_label
   preprocessing_config: *preprocessing_config
     # Data Preprocessing Related Config
-  dataset: wisdm # wisdm dataset
+  dataset: ES # wisdm dataset
 
 # specific experiment config:
 pretrain_exp:
@@ -78,25 +78,24 @@ pretrain_exp:
   model_type: "baseline" # one of ["baseline","cl", "mtl"]
   batch_size: 8
   valid_raio: 0.1 # the portion of data to be used for validation
-  learning_rate: 0.001
+  learning_rate: 0.0001
 
   # debug # only run 100 training and validation samples
   debug: false
 
 finetuning_exp: 
-  # config: &cur_exp
   # experiment prefix/name will be will append to the output dir
-  exp_name: "ft"
+  exp_name: "ft_baseline"
   force_preprocess: true # if true, preprocess data again and overwrite existing files
 
   # Training Related Config
-  training_epochs:  100
+  training_epochs:  30
   output_directory: "./checkpoints"
   verbose: false # whether to explicitly print out training progress
   model_type: "baseline" # one of ["baseline","cl", "mtl"]
   batch_size: 8
   valid_raio: 0.1 # the portion of data to be used for validation
-  learning_rate: 0.000005
+  learning_rate: 0.0001
 
   # debug # only run 100 training and validation samples
   debug: false

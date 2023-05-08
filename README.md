@@ -5,8 +5,8 @@
 In this research project, we will answer the following question: How do continual learning and multi-task learning approach compare in performance, computational efficiency, and robustness for human action recognition using smartwatch accelerometer data? Specifically, we aim to measure the overall performance of the two models in recognition accuracy, the training/inference time, and their transferability to other HAR datasets. We hope to gain insights into the strengths and weaknesses of the continual learning and multi-tasking learning method.
 
 The project is divded into two phase:
- - Phase 1: Traning base models: Applying continuous learning and mutl-task learning paradiam on Extrasensory dataset.
- - Phase 2: Transfer/Personalize the model for data collected in other HAR (Human Action Recognition) dataset
+ - Phase 1: Traning base models: Applying continuous learning and mutl-task learning paradiam on wisdm dataset.
+ - Phase 2: Transfer/Personalize the model for data collected in Extrasensory
 
 
 

@@ -170,6 +170,8 @@ class PrepareDataLoader():
         # for each universal label, select 10% of the data: 5% positive, 5% negative
         valid_index = []
         for label in self.universal_label:
+            if len(self.datasets[[self.datasets[label] == 1]]) == 0:
+                continue
             label_index = self.datasets[self.datasets[label] == 1].sample(frac=self.valid_ratio/2).index
             valid_index.extend(label_index)
             label_index = self.datasets[self.datasets[label] == 0].sample(frac=self.valid_ratio/2).index
