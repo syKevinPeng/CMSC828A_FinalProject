@@ -45,22 +45,22 @@ pretrain: &pretrain
 # specific experiment config:
 experiment:
   # experiment prefix/name will be will append to the output dir
-  exp_name: "cl"
+  exp_name: "baseline"
   # Data Preprocessing Related Config
   dataset: 
     - ES # one of ["ES", "SOME OTHER DATASET: TBD"]
   force_preprocess: false # if true, preprocess data again and overwrite existing files
 
   # Training Related Config
-  training_epochs: &default_epochs 1
+  training_epochs: &default_epochs 15
   output_directory: "./checkpoints"
   verbose: true # whether to explicitly print out training progress
-  model_type: "cl" # one of ["baseline","cl", "mtl"]
+  model_type: "baseline" # one of ["baseline","cl", "mtl"]
   batch_size: 8
   valid_raio: 0.1 # the portion of data to be used for validation
-  learning_rate: 0.001
+  learning_rate: 0.00001
 
   # debug # only run 100 training and validation samples
-  debug: true
+  debug: false
 
 

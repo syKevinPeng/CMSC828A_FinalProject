@@ -31,12 +31,14 @@ class Classifier_INCEPTION:
         self.bottleneck_size = 32
         self.nb_epochs = nb_epochs
         self.logger = get_logger(self.output_directory, "INCEPTION")
+        self.lr = lr
         if build == True:
             self.model = self.build_model(input_shape, nb_classes)
             if (verbose == True):
                 self.logger.info(self.model.summary())
             self.verbose = verbose
             self.model.save_weights(self.output_directory / 'model_init.hdf5')
+
 
     def _inception_module(self, input_tensor, stride=1, activation='linear'):
 
