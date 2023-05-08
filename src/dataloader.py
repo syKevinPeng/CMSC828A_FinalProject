@@ -6,7 +6,7 @@ from regex import B
 import tensorflow as tf
 import sys
 sys.path.insert(0,'../preprocess')
-from preprocess import extrasensory
+from preprocess import extrasensory, wisdm
 from pathlib import Path
 import pandas as pd
 import numpy as np
@@ -19,8 +19,9 @@ from tensorflow import keras
 class PrepareDataLoader():
     def __init__(self, pretrain_config, experiment_config) -> None:
         self.preprocess_config = pretrain_config["preprocessing_config"]
+        self.pretrain_config = pretrain_config
         self.experiment_config = experiment_config
-        self.dataset_list = self.experiment_config["dataset"]
+        self.dataset_list = self.pretrain_config["dataset"]
         self.output_dir =Path(self.experiment_config["output_directory"])/self.experiment_config['exp_name']
         self.logger = get_logger( self.output_dir, "Dataloader")
         self.train_type = self.experiment_config['model_type']
@@ -30,7 +31,6 @@ class PrepareDataLoader():
         self.debug = self.experiment_config['debug']
     
     def prepare_dataset(self):
-        all_dataset = []
         for dataset in self.dataset_list:
             if dataset in ["ES", "extrasensory"]:
                 self.logger.info(f'Checking if Extrasensory is been preprocessed ...')
@@ -47,6 +47,19 @@ class PrepareDataLoader():
                     self.logger.info("Extrasensory found. Loading")
                     es_df = pd.read_csv(preprocessed_file)
                 dataset = es_df
+            if dataset in ['wisdm', 'WISDM']:
+                print(f'Checking if WISDM is been preprocessed ...')
+                preprocessed_file = Path(self.preprocess_config["wisdm_preprocessor"]["out"]['dir'])/f"preprocessed_wisdm.csv"
+                if not (preprocessed_file).is_file():
+                    print("WISDM not found. Preprocessing")
+                    wisdm_df = self.preprocess_wisdm(save_df = True, dir = preprocessed_file)
+                elif self.experiment_config["force_preprocess"]:
+                    print("WISDM found but force_preprocess is set to True. Preprocessing")
+                    wisdm_df = self.preprocess_wisdm(save_df = True, dir = preprocessed_file)
+                else: # loading dataframe
+                    print("WISDM found. Loading")
+                    wisdm_df = pd.read_csv(preprocessed_file) 
+                dataset = wisdm_df
             else:
                 self.logger.error(f"Dataset {dataset} not found")
                 raise ValueError("Dataset not found")
@@ -62,6 +75,13 @@ class PrepareDataLoader():
             dir.parent.mkdir(parents=True, exist_ok=True)
         if save_df: es_processor.save_df(es_df, save_dir = dir)
         return es_df
+    
+    def preprocess_wisdm(self, save_df, dir):
+        processor = wisdm.WisdmProcessor(self.preprocess_config['wisdm_preprocessor'])
+        df = processor.preprocess()
+        if save_df: processor.save_df(df, save_dir = dir)
+        return df
+
     
     def load_pretrain_data(self, labels:list, model_type, new_class = [None]):
         '''

@@ -3,7 +3,7 @@ import logging
 import yaml
 import tensorflow as tf
 import time
-import pretrain
+import pretrain, finetuning
 from utils.utils import get_logger
 from pathlib import Path
 
@@ -12,7 +12,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", type=str, default="configs/config_siyuan.yaml")
     parser.add_argument("--train", action="store_true")
-    parse.add_argument(f'--finetuning', action='store_true'')
+    parser.add_argument(f'--finetuning', action='store_true')
     args = parser.parse_args()
 
     assert args.config, "Please specify the config file"

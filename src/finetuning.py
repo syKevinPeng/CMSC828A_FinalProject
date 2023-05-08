@@ -6,9 +6,9 @@ import numpy as np
 from tensorflow import keras
 
 class Trainer:
-    def __init__(self, experiment_config, pretrain_config):
+    def __init__(self, experiment_config, finetune_config):
         self.experiment_config = experiment_config
-        self.pretrain_config = pretrain_config
+        self.pretrain_config = finetune_config
         self.output_dir = pathlib.Path(self.experiment_config["output_directory"])/self.experiment_config['exp_name']
         self.logger = get_logger(self.output_dir, "Trainer")
         self.model_type = self.experiment_config["model_type"]
@@ -26,7 +26,7 @@ class Trainer:
         elif self.model_type in ['mtl', 'MTL','MultitaskLearning']:
             self.ft_mtl()
 
-    def ft_baseline():
+    def ft_baseline(self):
         nb_epochs = self.experiment_config["training_epochs"]
         verbose = self.experiment_config["verbose"]
         # load data

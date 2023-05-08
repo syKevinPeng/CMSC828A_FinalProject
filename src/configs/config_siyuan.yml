@@ -56,19 +56,22 @@ preprocessing: &preprocessing_config
 pretrain: &pretrain
   universal_label: *universal_label
   preprocessing_config: *preprocessing_config
+  # Data Preprocessing Related Config
+  dataset: 
+    - ES # extrasensory dataset
 
 finetuning:
   universal_label: *universal_label
   preprocessing_config: *preprocessing_config
+    # Data Preprocessing Related Config
+  dataset: 
+    - wisdm # wisdm dataset
 
 # specific experiment config:
 experiment:
   # experiment prefix/name will be will append to the output dir
-  exp_name: "baseline1"
-  # Data Preprocessing Related Config
-  dataset: 
-    - ES # one of ["ES", "SOME OTHER DATASET: TBD"]
-  force_preprocess: false # if true, preprocess data again and overwrite existing files
+  exp_name: "ft"
+  force_preprocess: true # if true, preprocess data again and overwrite existing files
 
   # Training Related Config
   training_epochs: &default_epochs 100

@@ -3,6 +3,7 @@ import pathlib
 import pandas as pd
 import numpy as np
 from pathlib import Path
+from utils.utils import get_logger
 
 # https://archive.ics.uci.edu/ml/datasets/WISDM+Smartphone+and+Smartwatch+Activity+and+Biometrics+Dataset+
 class WisdmProcessor():
@@ -14,49 +15,39 @@ class WisdmProcessor():
         self.label = self.config["label"]
         self.label_dict:dict = self.config["label_converter"]
         self.uni_label = self.config["universal_label"]
-        self.data_orgnization = config["experiment_config"]['data_orgnize_opt']
+        self.data_orgnization = "mean"
+        self.logger = get_logger(self.config["out"]["dir"], "WisdmProc")
     
     def load_files(self):
         all_acc_data = []
-        all_gyro_data = []
         # read all accelermeter data
         for file_path in sorted((Path(self.data_dir)/"accel").glob('*.txt')):
             df = pd.read_csv(file_path, names = ["part_id", "label", "timestamp", "x", "y", "z"],lineterminator=";", low_memory=False)
+            df['part_id'] = np.full(len(df), df.iloc[0,0])
             all_acc_data.append(df)
-        # read all gyroscope data
-        for file_path in sorted((Path(self.data_dir)/"gyro").glob('*.txt')):
-            df = pd.read_csv(file_path, names = ["part_id", "label", "timestamp", "ro_xy", "ro_xz", "ro_yz"],lineterminator=";", low_memory=False)
-            all_gyro_data.append(df)
         all_acc_df = pd.concat(all_acc_data, axis = 0)
-        all_gyro_df = pd.concat(all_gyro_data, axis = 0)
-        
-        all_acc_df['part_id'] = np.full(len(all_acc_df), all_acc_df.iloc[0,0])
-        all_gyro_df['part_id'] = np.full(len(all_gyro_df), all_gyro_df.iloc[0,0])
         
         all_acc_df.loc[:, "timestamp"] = pd.to_datetime(all_acc_df.loc[:, "timestamp"]).round("10ms")
-        all_gyro_df.loc[:, "timestamp"] = pd.to_datetime(all_gyro_df.loc[:, "timestamp"]).round("10ms")
+        # all_gyro_df.loc[:, "timestamp"] = pd.to_datetime(all_gyro_df.loc[:, "timestamp"]).round("10ms")
         
         all_acc_df = all_acc_df.dropna(axis=0, how="any")
-        all_gyro_df = all_gyro_df.dropna(axis=0, how="any")
+        # all_gyro_df = all_gyro_df.dropna(axis=0, how="any")
 
         all_acc_df = all_acc_df.sort_values(by=["part_id", "timestamp"])
-        all_gyro_df: DataFrame = all_gyro_df.sort_values(by=["part_id", "timestamp"])
-
-        # merge acc and gyro data
-        all_df = all_acc_df.merge(all_gyro_df,how="inner", on=["part_id", "label", "timestamp"])
-        return all_df
+        all_acc_df = all_acc_df.reset_index(drop=True)
+        return all_acc_df
     
     def label_converter(self, label):
         return self.label_dict[label]
 
     def preprocess_df(self, all_df):
         # normalization
-        name_col = ["x", "y", "z", "ro_xy", "ro_xz", "ro_yz"]
-        for col in name_col:
-            all_df.loc[:, col] = (all_df[col]-all_df[col].mean())/all_df[col].std()
+        name_col = ["x", "y", "z"]
+        # for col in name_col:
+        #     all_df.loc[:, col] = (all_df[col]-all_df[col].mean())/all_df[col].std()
         activity_list = []
         for label in self.label:
-            act_df = all_df[all_df["label"] == label].iloc[:, 1:]
+            act_df = all_df[all_df["label"] == label].loc[:, ["part_id", "timestamp"] + name_col]
             placeholder= np.zeros((len(act_df),len(self.uni_label)))
             current_label = self.label_converter(label)
             label_idx = self.uni_label.index(current_label)
@@ -67,9 +58,15 @@ class WisdmProcessor():
             act_df = act_df.reset_index(drop=True)
             activity_list.append(act_df)
         all_df = pd.concat(activity_list, axis = 0,)
-        grouped_df = self.resampling(all_df)
-        grouped_df[self.uni_label] = grouped_df[self.uni_label]
-        grouped_df = grouped_df.drop(columns=["timestamp"])
+        # perform resampling for each of the participants with part_id
+        resampled_df = []
+        for part_id in all_df["part_id"].unique():
+            self.logger.info(f"Resampling data of part_id {part_id}")
+            input_df = all_df[all_df["part_id"] == part_id]
+            input_df[name_col] = input_df[name_col].apply(pd.to_numeric)
+            resampled = self.resampling(input_df)
+            resampled_df.append(resampled)
+        grouped_df = pd.concat(resampled_df, axis = 0)
         grouped_df = grouped_df.reset_index(drop=True)
         return grouped_df
     
