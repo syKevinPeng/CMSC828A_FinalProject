@@ -47,9 +47,9 @@ class Trainer:
         model = inception.Classifier_INCEPTION(self.output_dir, input_shape, nb_classes,
                                                                 verbose=verbose, 
                                                                 build=True, 
-                                                                depth = 2,
+                                                                depth = 5,
                                                                 nb_epochs = nb_epochs,
-                                                                use_bottleneck = True,
+                                                                use_bottleneck = False,
                                                                 lr = self.learning_rate
                                                                 )
         self.logger.info("---- Start training ----") 

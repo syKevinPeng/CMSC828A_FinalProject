@@ -18,23 +18,26 @@ def main():
     assert args.config, "Please specify the config file"
     with open(args.config, "r") as f:
         config = yaml.load(f, Loader=yaml.FullLoader)
-    output_dir = Path(config['experiment']["output_directory"])/config['experiment']['exp_name']
+    exp_config = config["experiment"]['cur_exp']
+    output_dir = Path(exp_config["output_directory"])/exp_config['exp_name']
     log = get_logger(output_dir, "main")
-    log.info(f"==== Experiment Config ====\n {config['experiment']}")
+    log.info(f"==== Experiment Config ====\n {exp_config}")
 
     if args.train:
         log.info(f"==== Training Phase ====")
         start_time = time.time()
         config["pretrain"]["start_time"] = start_time
-        trainer = pretrain.Trainer(config["experiment"], config["pretrain"])
+        trainer = pretrain.Trainer(exp_config, config["pretrain"])
         trainer.train()
+        end_time = time.time()
+        log.info(f"Overall Training time: {end_time - start_time}")
     if args.finetuning:
         log.info(f"==== Finetuning Phase ====")
         start_time = time.time()
         config["finetuning"]["start_time"] = start_time
-        trainer = finetuning.Trainer(config["experiment"], config["finetuning"])
+        trainer = finetuning.Trainer(exp_config, config["finetuning"])
         trainer.train()
-
+        log.info(f"Overall Finetuning time: {end_time - start_time}")
 
 if __name__ == "__main__":
     main()
