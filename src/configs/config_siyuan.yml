@@ -69,7 +69,7 @@ finetuning:
 pretrain_exp:
   # experiment prefix/name will be will append to the output dir
   exp_name: "pretrain_baseline"
-  force_preprocess: true # if true, preprocess data again and overwrite existing files
+  force_preprocess: false # if true, preprocess data again and overwrite existing files
 
   # Training Related Config
   training_epochs: 100
