@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 from regex import B
 
-import tensorboard as tf
+import tensorflow as tf
 import sys
 sys.path.insert(0,'../preprocess')
 from preprocess import extrasensory
@@ -167,6 +167,8 @@ class DataLoader(keras.utils.Sequence):
         y = batch_df[self.labels].to_numpy()
         if len(x.shape) == 2: 
             x = x.reshape((x.shape[0], x.shape[1], 1))
+        x = tf.convert_to_tensor(x, dtype=tf.float32)
+        y = tf.convert_to_tensor(y, dtype=tf.float32)
         return x, y
     
 # dataloader used for CL training, specifically it merge the reserved data and the current batch data
@@ -195,6 +197,8 @@ class CLDataLoader(keras.utils.Sequence):
         y = np.concatenate((y, y_reserve), axis=0)
         if len(x.shape) == 2: 
             x = x.reshape((x.shape[0], x.shape[1], 1))
+        x = tf.convert_to_tensor(x, dtype=tf.float32)
+        y = tf.convert_to_tensor(y, dtype=tf.float32)
         return x, y
     
     
