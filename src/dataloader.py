@@ -119,6 +119,17 @@ class PrepareDataLoader():
             # TODO
             raise NotImplementedError
     
+    def load_finetuning_data(self, label, model_type, partition):
+        if partition not in ['train', 'valid']:
+            raise ValueError(f"Partition {partition} not supported")
+        if model_type == 'baseline':
+            pass
+        elif model_type == 'cl':
+            pass
+        elif model_type == 'mtl':
+            pass
+        
+    
     # read the csv reserved data
     def load_reserved_data(self, labels):
         data_path = Path(self.preprocess_config["extrasensory_preprocessor"]["out"]['dir'])/f'herd_samples.csv'
