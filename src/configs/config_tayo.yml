@@ -1,11 +1,11 @@
 preprocessing: &preprocessing_config
   universal_label: &universal_label
     - 'sedentary_sitting_other' 
-    # - 'sedentary_sitting_transport' 
+    - 'sedentary_sitting_transport' 
     - 'sedentary_lying'
     - 'upright_standing'
     - 'upright_stepping'
-    # - 'cycling'
+    - 'cycling'
   extrasensory_preprocessor:
     in: 
       dir: datasets/extrasensory/
@@ -36,8 +36,7 @@ preprocessing: &preprocessing_config
       cycling: es__bicycling 
 
 
-pretrain:
-  model_type: "MTL" # one of ["CL", "MTL"]
+pretrain: &pretrain
   universal_label: *universal_label
   preprocessing_config: *preprocessing_config
 
@@ -46,15 +45,21 @@ pretrain:
 # specific experiment config:
 experiment:
   # experiment prefix/name will be will append to the output dir
-  exp_name: "tayo_test"
+  exp_name: "mtl"
   # Data Preprocessing Related Config
   dataset: 
     - ES # one of ["ES", "SOME OTHER DATASET: TBD"]
   force_preprocess: false # if true, preprocess data again and overwrite existing files
 
   # Training Related Config
-  training_epochs: &default_epochs 15
+  training_epochs: &default_epochs 1
   output_directory: "./checkpoints"
   batch_size: 8
+  valid_raio: 0.1 # the portion of data to be used for validation
+  verbose: true # whether to explicitly print out training progress
+  model_type: "mtl" # one of ["baseline","cl", "mtl"]
+
+  # debug # only run 100 training and validation samples
+  debug: true
 
 
