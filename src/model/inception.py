@@ -17,7 +17,7 @@ from pathlib import Path
 class Classifier_INCEPTION:
 
     def __init__(self, output_directory, input_shape, nb_classes, verbose=False, build=True, batch_size=1,
-                 nb_filters=32, use_residual=True, use_bottleneck=True, depth=6, kernel_size=41, nb_epochs=1500):
+                 nb_filters=32, use_residual=True, use_bottleneck=True, depth=6, kernel_size=11, nb_epochs=1500,lr = 0.001):
 
         self.output_directory = output_directory
 
@@ -31,12 +31,14 @@ class Classifier_INCEPTION:
         self.bottleneck_size = 32
         self.nb_epochs = nb_epochs
         self.logger = get_logger(self.output_directory, "INCEPTION")
+        self.lr = lr
         if build == True:
             self.model = self.build_model(input_shape, nb_classes)
             if (verbose == True):
                 self.logger.info(self.model.summary())
             self.verbose = verbose
             self.model.save_weights(self.output_directory / 'model_init.hdf5')
+
 
     def _inception_module(self, input_tensor, stride=1, activation='linear'):
 
@@ -106,11 +108,11 @@ class Classifier_INCEPTION:
             tfa.metrics.F1Score(num_classes=nb_classes, average='macro', name='f1_score')
         ]
         # define loss function
-        model.compile(loss='categorical_crossentropy', optimizer=keras.optimizers.Adam(),
+        model.compile(loss='categorical_crossentropy', optimizer=keras.optimizers.Adam(learning_rate=self.lr),
                       metrics=metrics)
         # don't need to modify anything down below
-        reduce_lr = keras.callbacks.ReduceLROnPlateau(monitor='loss', factor=0.5, patience=50,
-                                                      min_lr=0.0001)
+        reduce_lr = keras.callbacks.ReduceLROnPlateau(monitor='loss', factor=0.5, patience=5,
+                                                      min_lr=0.00001)
         weight_format = 'epoch-{epoch:02d}-val_acc-{val_accuracy:.4f}-train_acc-{accuracy:.4f}-precision-{precision:.4f}-recall-{recall:.4f}.h5'
         file_path = self.output_directory / weight_format
 
@@ -133,20 +135,6 @@ class Classifier_INCEPTION:
         duration = time.time() - start_time
         self.logger.info(f"==== Training time: {duration} seconds ====")
         self.model.save(self.output_directory /'last_model.hdf5')
-
-        # y_pred = self.predict(x_val, y_true, x_train, y_train, y_val,
-        #                       return_df_metrics=False)
-
-        # # save predictions
-        # # np.save(self.output_directory + 'y_pred.npy', y_pred)
-
-        # # convert the predicted from binary to integer
-        # y_pred = np.argmax(y_pred, axis=1)
-
-        # if save_log:
-        #     df_metrics = save_logs(self.output_directory, hist, y_pred, y_true, duration,
-        #                        plot_test_acc=plot_test_acc)
-
         keras.backend.clear_session()
 
         return self.model

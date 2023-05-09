@@ -16,6 +16,8 @@ class Trainer:
         if self.model_type not in ['baseline', 'cl', 'mtl']:
             raise ValueError(f"Model type {self.model_type} not supported")
         self.universal_label = self.pretrain_config['universal_label']
+        self.debug = self.experiment_config["debug"]
+        self.learning_rate = self.experiment_config["learning_rate"]
     
     def train(self):
         if self.model_type in ['bl', 'baseline', 'Baseline']:
@@ -29,7 +31,6 @@ class Trainer:
 
     # training code for baseline model
     def train_baseline(self):
-        batch_size = self.experiment_config["batch_size"]
         nb_epochs = self.experiment_config["training_epochs"]
         verbose = self.experiment_config["verbose"]
         # load data
@@ -46,8 +47,10 @@ class Trainer:
         model = inception.Classifier_INCEPTION(self.output_dir, input_shape, nb_classes,
                                                                 verbose=verbose, 
                                                                 build=True, 
+                                                                depth = 5,
                                                                 nb_epochs = nb_epochs,
-                                                                use_bottleneck = False
+                                                                use_bottleneck = False,
+                                                                lr = self.learning_rate
                                                                 )
         self.logger.info("---- Start training ----") 
         model.fit(train_dataloader, valid_dataloader)
@@ -68,10 +71,14 @@ class Trainer:
         seen_label = ['sedentary_sitting_other', 'sedentary_lying']
         # get train data for the first two labels
         self.logger.info(f"Loading data of label sedentary_sitting_other and sedentary_lying ...")
-        train_df, valid_df = dataloader.load_pretrain_data(
-                                                                                    labels = seen_label, 
+        train_generator, valid_generator = dataloader.load_pretrain_data(
+                                                                                    labels = self.universal_label, 
                                                                                     model_type = 'cl', 
                                                                                     new_class=seen_label)
+        if self.debug:
+            for x, y in train_generator:
+                self.logger.info(f'first iter: x shape: {x.shape}, y shape: {y.shape}')
+                break
        
         if not self.output_dir.is_dir():
             self.logger.warning(f"Parent directory {self.output_dir} not found. Creating directory")
@@ -82,13 +89,13 @@ class Trainer:
         # add channel dimension if needed
         input_shape =(3,1)
         output_dir = self.output_dir/"-".join(seen_label)
-        model = inception_cl.InceptionWithCL(output_dir, input_shape, nb_classes,
+        model = inception_cl.InceptionWithCL(output_dir, input_shape, nb_classes = len(self.universal_label), # force the model to predict all labels
                                                                 verbose=verbose, 
                                                                 build=True, 
                                                                 nb_epochs = nb_epochs,
                                                                 use_bottleneck = False,
                                                                 add_CN = False) # do not use cosline normalziaton in first iter
-        prev_model = model.fit(train_df, valid_df)
+        prev_model = model.fit(train_generator, valid_generator)
         self.logger.info(f"End training : {seen_label}")
         self.logger.info(f"End 1st iteration")
         # ---- second and following iter -----
@@ -106,24 +113,25 @@ class Trainer:
             _add_CN = False if len(seen_label) == 2 else True
             seen_label = np.append(seen_label, label)
             output_dir = self.output_dir/"-".join(seen_label)  
-            model = inception_cl.InceptionWithCL(output_dir, input_shape, nb_classes,
-                                                                verbose=False, 
+            model = inception_cl.InceptionWithCL(output_dir, input_shape, nb_classes = len(self.universal_label), # force the model to predict all labels
+                                                                verbose=verbose, 
                                                                 build=True, 
                                                                 batch_size=batch_size,
                                                                 nb_epochs = nb_epochs,
                                                                 use_bottleneck = False,
-                                                                add_CN = _add_CN) # use cosline normalziaton in second and following iter
+                                                                add_CN = _add_CN,
+                                                                lr=self.learning_rate) # use cosline normalziaton in second and following iter
             model.load_model_from_weights(prev_weights_path)
-            # update seen label and the last layer of the model: output class + 1
-            new_nb_classes = len(seen_label)
-            model.update_model_with_new_class(new_nb_classes, prev_model = prev_model) # update last layer
-            # get train data for the seen labels
             self.logger.info(f"Loading data of label {seen_label} ...")
             train_df, valid_df= dataloader.load_pretrain_data(
                                                                                     labels = seen_label, 
                                                                                     model_type = 'cl', 
                                                                                     new_class = [label])
-            prev_model = model.fit(train_df, valid_df)
+            if self.debug:
+                for x, y in train_generator:
+                    self.logger.info(f'second and following iter: x shape: {x.shape}, y shape: {y.shape}')
+                    break
+            prev_model = model.fit_kd(train_df, valid_df, prev_model)
             self.logger.info(f"End training : {seen_label}")
         self.logger.info("---- End training ----")
 

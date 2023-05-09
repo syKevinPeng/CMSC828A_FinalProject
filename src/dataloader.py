@@ -3,10 +3,10 @@ import pandas as pd
 import numpy as np
 from regex import B
 
-import tensorboard as tf
+import tensorflow as tf
 import sys
 sys.path.insert(0,'../preprocess')
-from preprocess import extrasensory
+from preprocess import extrasensory, wisdm
 from pathlib import Path
 import pandas as pd
 import numpy as np
@@ -19,37 +19,56 @@ from tensorflow import keras
 class PrepareDataLoader():
     def __init__(self, pretrain_config, experiment_config) -> None:
         self.preprocess_config = pretrain_config["preprocessing_config"]
+        self.pretrain_config = pretrain_config
         self.experiment_config = experiment_config
-        self.dataset_list = self.experiment_config["dataset"]
+        self.dataset_name = self.pretrain_config["dataset"]
         self.output_dir =Path(self.experiment_config["output_directory"])/self.experiment_config['exp_name']
         self.logger = get_logger( self.output_dir, "Dataloader")
         self.train_type = self.experiment_config['model_type']
-        self.datasets = self.prepare_dataset()
         self.universal_label = pretrain_config['universal_label']
         self.valid_ratio = self.experiment_config['valid_raio']
         self.debug = self.experiment_config['debug']
+        self.datasets = self.prepare_dataset()
+        
     
     def prepare_dataset(self):
-        all_dataset = []
-        for dataset in self.dataset_list:
-            if dataset in ["ES", "extrasensory"]:
-                self.logger.info(f'Checking if Extrasensory is been preprocessed ...')
-                preprocessed_file = Path(self.preprocess_config["extrasensory_preprocessor"]["out"]['dir'])/f"preprocessed_es.csv"
-                if not (preprocessed_file).is_file():
-                    self.logger.info("Extrasensory not found. Preprocessing")
-                    es_df = self.preprocess_es(save_df = True, dir = preprocessed_file)
-                    if self.train_type == 'CL': self.prepare_herd_selection_data(es_df)
-                elif self.experiment_config["force_preprocess"]:
-                    self.logger.warning("Extrasensory found but force_preprocess is set to True. Preprocessing")
-                    es_df = self.preprocess_es(save_df = True, dir = preprocessed_file)
-                    if self.train_type == 'CL': self.prepare_herd_selection_data(es_df)
-                else:
-                    self.logger.info("Extrasensory found. Loading")
-                    es_df = pd.read_csv(preprocessed_file)
-                dataset = es_df
+        if self.dataset_name in ["ES", "extrasensory"]:
+            self.logger.info(f'Checking if Extrasensory is been preprocessed ...')
+            preprocessed_file = Path(self.preprocess_config["extrasensory_preprocessor"]["out"]['dir'])/f"preprocessed_es.csv"
+            if not (preprocessed_file).is_file():
+                self.logger.info("Extrasensory not found. Preprocessing")
+                es_df = self.preprocess_es(save_df = True, dir = preprocessed_file)
+                # if self.train_type == 'CL': self.prepare_herd_selection_data(es_df)
+            elif self.experiment_config["force_preprocess"]:
+                self.logger.warning("Extrasensory found but force_preprocess is set to True. Preprocessing")
+                es_df = self.preprocess_es(save_df = True, dir = preprocessed_file)
+                # if self.train_type == 'CL': self.prepare_herd_selection_data(es_df)
             else:
-                self.logger.error(f"Dataset {dataset} not found")
-                raise ValueError("Dataset not found")
+                self.logger.info("Extrasensory found. Loading")
+                es_df = pd.read_csv(preprocessed_file)
+            dataset = es_df
+        elif self.dataset_name in ['wisdm', 'WISDM']:
+            print(f'Checking if WISDM is been preprocessed ...')
+            preprocessed_file = Path(self.preprocess_config["wisdm_preprocessor"]["out"]['dir'])/f"preprocessed_wisdm.csv"
+            if not (preprocessed_file).is_file():
+                self.logger.info("WISDM not found. Preprocessing")
+                wisdm_df = self.preprocess_wisdm(save_df = True, dir = preprocessed_file)
+                if self.train_type == 'cl': self.prepare_herd_selection_data(es_df)
+            elif self.experiment_config["force_preprocess"]:
+                self.logger.warning("WISDM found but force_preprocess is set to True. Preprocessing")
+                wisdm_df = self.preprocess_wisdm(save_df = True, dir = preprocessed_file)
+                if self.train_type == 'cl': self.prepare_herd_selection_data(es_df)
+            else: # loading dataframe
+                self.logger.info("WISDM found. Loading")
+                wisdm_df = pd.read_csv(preprocessed_file) 
+            dataset = wisdm_df
+        else:
+            self.logger.error(f"Dataset {self.dataset_name} not found")
+            raise ValueError("Dataset not found")
+        
+        # count how many entries per label
+        for label in self.universal_label:
+            self.logger.info(f"Number of {label} entries: {dataset[label].sum()}")
         return dataset
     
     def preprocess_es(self, save_df, dir):
@@ -62,6 +81,13 @@ class PrepareDataLoader():
             dir.parent.mkdir(parents=True, exist_ok=True)
         if save_df: es_processor.save_df(es_df, save_dir = dir)
         return es_df
+    
+    def preprocess_wisdm(self, save_df, dir):
+        processor = wisdm.WisdmProcessor(self.preprocess_config['wisdm_preprocessor'])
+        df = processor.preprocess()
+        if save_df: processor.save_df(df, save_dir = dir)
+        return df
+
     
     def load_pretrain_data(self, labels:list, model_type, new_class = [None]):
         '''
@@ -91,8 +117,8 @@ class PrepareDataLoader():
                 valid_df = valid_df.iloc[:100]
 
             # simple combination strategy: need modificaiton later
-            cl_dataloader_train = CLDataLoader(train_df, herd_df, self.experiment_config, labels)
-            cl_dataloader_valid = DataLoader(valid_df, self.experiment_config, labels)
+            cl_dataloader_train = CLDataLoader(train_df, herd_df, self.experiment_config, self.universal_label)
+            cl_dataloader_valid = DataLoader(valid_df, self.experiment_config, self.universal_label)
 
             return cl_dataloader_train, cl_dataloader_valid
         elif model_type == "mtl":
@@ -101,6 +127,17 @@ class PrepareDataLoader():
             dataloader_train = DataLoader(train_df, self.experiment_config, labels)
             dataloader_valid = DataLoader(valid_df, self.experiment_config, labels)
             return dataloader_train, dataloader_valid
+    def load_finetuning_data(self, label, model_type, partition):
+        if partition not in ['train', 'valid']:
+            raise ValueError(f"Partition {partition} not supported")
+        if model_type == 'baseline':
+            pass
+        elif model_type == 'cl':
+            pass
+        elif model_type == 'mtl':
+            pass
+        
+    
     # read the csv reserved data
     def load_reserved_data(self, labels):
         data_path = Path(self.preprocess_config["extrasensory_preprocessor"]["out"]['dir'])/f'herd_samples.csv'
@@ -114,7 +151,9 @@ class PrepareDataLoader():
     
     # get herd selection data
     def prepare_herd_selection_data(self, es_df):
-        output_dir = Path(self.preprocess_config["extrasensory_preprocessor"]["out"]['dir'])
+        output_dir = Path(self.preprocess_config["wisdm_preprocessor"]["out"]['dir'])
+        print(f"output dir: {output_dir}")
+        exit()
         reserved_df, reserved_index = extrasensory.herd_selection(es_df, output_dir, logger = self.logger)
         reserved_df.to_csv(output_dir/'herd_samples.csv', index=False)
         np.save(output_dir/'herd_samples_index.npy', reserved_index)
@@ -142,6 +181,8 @@ class PrepareDataLoader():
         # for each universal label, select 10% of the data: 5% positive, 5% negative
         valid_index = []
         for label in self.universal_label:
+            if len(self.datasets[self.datasets[label] == 1]) == 0:
+                continue
             label_index = self.datasets[self.datasets[label] == 1].sample(frac=self.valid_ratio/2).index
             valid_index.extend(label_index)
             label_index = self.datasets[self.datasets[label] == 0].sample(frac=self.valid_ratio/2).index
@@ -169,6 +210,8 @@ class DataLoader(keras.utils.Sequence):
         y = batch_df[self.labels].to_numpy()
         if len(x.shape) == 2: 
             x = x.reshape((x.shape[0], x.shape[1], 1))
+        x = tf.convert_to_tensor(x, dtype=tf.float32)
+        y = tf.convert_to_tensor(y, dtype=tf.float32)
         return x, y
     
 # dataloader used for CL training, specifically it merge the reserved data and the current batch data
@@ -197,6 +240,8 @@ class CLDataLoader(keras.utils.Sequence):
         y = np.concatenate((y, y_reserve), axis=0)
         if len(x.shape) == 2: 
             x = x.reshape((x.shape[0], x.shape[1], 1))
+        x = tf.convert_to_tensor(x, dtype=tf.float32)
+        y = tf.convert_to_tensor(y, dtype=tf.float32)
         return x, y
     
     
