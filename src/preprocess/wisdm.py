@@ -32,6 +32,7 @@ class WisdmProcessor():
         
         all_acc_df = all_acc_df.dropna(axis=0, how="any")
         # all_gyro_df = all_gyro_df.dropna(axis=0, how="any")
+        # only keep 4000 entries of label D
 
         all_acc_df = all_acc_df.sort_values(by=["part_id", "timestamp"])
         all_acc_df = all_acc_df.reset_index(drop=True)
@@ -59,15 +60,21 @@ class WisdmProcessor():
             activity_list.append(act_df)
         all_df = pd.concat(activity_list, axis = 0,)
         # perform resampling for each of the participants with part_id
-        resampled_df = []
-        for part_id in all_df["part_id"].unique():
-            self.logger.info(f"Resampling data of part_id {part_id}")
-            input_df = all_df[all_df["part_id"] == part_id]
-            input_df[name_col] = input_df[name_col].apply(pd.to_numeric)
-            resampled = self.resampling(input_df)
-            resampled_df.append(resampled)
-        grouped_df = pd.concat(resampled_df, axis = 0)
-        grouped_df = grouped_df.reset_index(drop=True)
+        # resampled_df = []
+        # for part_id in all_df["part_id"].unique():
+        #     self.logger.info(f"Resampling data of part_id {part_id}")
+        #     input_df = all_df[all_df["part_id"] == part_id]
+        #     input_df[name_col] = input_df[name_col].apply(pd.to_numeric)
+        #     resampled = self.resampling(input_df)
+        #     resampled_df.append(resampled)
+        # resampled_df = all_df
+        # grouped_df = pd.concat(resampled_df, axis = 0)
+        # grouped_df = grouped_df.reset_index(drop=True)
+        grouped_df = all_df
+
+        # D_acc_df = all_acc_df[all_acc_df["label"] == "D"]
+        # all_acc_df = all_acc_df[all_acc_df["label"] != "D"]
+        # all_acc_df = pd.concat([all_acc_df, D_acc_df.iloc[:4000, :]], axis = 0)
         return grouped_df
     
     def resampling(self, df):
@@ -96,7 +103,7 @@ class WisdmProcessor():
             agg_df = agg_df.dropna(axis=0, how="any")
         
         elif self.data_orgnization == 'mean':
-            agg_df = user_df.resample("1Min").mean().reset_index()
+            agg_df = user_df.resample("1s").mean().reset_index()
             labels = agg_df.iloc[:,-(len(self.uni_label)):].to_numpy()
             idx = labels.argmax(axis=1)
             labels = (idx[:,None] == np.arange(labels.shape[1])).astype(float)
@@ -115,5 +122,4 @@ class WisdmProcessor():
     def preprocess(self):
         merged_df = self.load_files()
         preprocessed_df = self.preprocess_df(merged_df)
-        print(len(preprocessed_df))
         return preprocessed_df

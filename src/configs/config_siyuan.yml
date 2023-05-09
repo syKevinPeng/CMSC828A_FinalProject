@@ -68,13 +68,13 @@ finetuning:
 # specific experiment config:
 pretrain_exp:
   # experiment prefix/name will be will append to the output dir
-  exp_name: "pretrain_baseline"
-  force_preprocess: false # if true, preprocess data again and overwrite existing files
+  exp_name: "pretrain_cl"
+  force_preprocess: true # if true, preprocess data again and overwrite existing files
 
   # Training Related Config
   training_epochs: 100
   output_directory: "./checkpoints"
-  verbose: false # whether to explicitly print out training progress
+  verbose: True # whether to explicitly print out training progress
   model_type: "baseline" # one of ["baseline","cl", "mtl"]
   batch_size: 8
   valid_raio: 0.1 # the portion of data to be used for validation

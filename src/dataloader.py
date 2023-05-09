@@ -25,10 +25,11 @@ class PrepareDataLoader():
         self.output_dir =Path(self.experiment_config["output_directory"])/self.experiment_config['exp_name']
         self.logger = get_logger( self.output_dir, "Dataloader")
         self.train_type = self.experiment_config['model_type']
-        self.datasets = self.prepare_dataset()
         self.universal_label = pretrain_config['universal_label']
         self.valid_ratio = self.experiment_config['valid_raio']
         self.debug = self.experiment_config['debug']
+        self.datasets = self.prepare_dataset()
+        
     
     def prepare_dataset(self):
         if self.dataset_name in ["ES", "extrasensory"]:
@@ -62,6 +63,10 @@ class PrepareDataLoader():
         else:
             self.logger.error(f"Dataset {self.dataset_name} not found")
             raise ValueError("Dataset not found")
+        
+        # count how many entries per label
+        for label in self.universal_label:
+            self.logger.info(f"Number of {label} entries: {dataset[label].sum()}")
         return dataset
     
     def preprocess_es(self, save_df, dir):
