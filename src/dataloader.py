@@ -95,7 +95,7 @@ class PrepareDataLoader():
             cl_dataloader_valid = DataLoader(valid_df, self.experiment_config, labels)
 
             return cl_dataloader_train, cl_dataloader_valid
-        elif model_type == "MTL":
+        elif model_type == "mtl":
             train_df, valid_df = self.prepare_data_split()
             # Convert data to batches  Temporary solution to see if things work
             dataloader_train = DataLoader(train_df, self.experiment_config, labels)

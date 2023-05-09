@@ -139,7 +139,7 @@ class Trainer:
         # load data
         dataloader = PrepareDataLoader(self.pretrain_config, self.experiment_config)
         self.logger.info(f"Loading data ...")
-        train_dataloader, valid_dataloader  = dataloader.load_pretrain_data(labels = self.universal_label, model_type = "baseline")
+        train_dataloader, valid_dataloader  = dataloader.load_pretrain_data(labels = self.universal_label, model_type = "mtl")
         if not self.output_dir.is_dir():
             self.logger.warning(f"Parent directory {self.output_dir} not found. Creating directory")
             self.output_dir.mkdir(parents=True, exist_ok=True)
@@ -156,9 +156,7 @@ class Trainer:
         self.logger.info("---- Start training ----") 
         model.fit(train_dataloader, valid_dataloader)
         self.logger.info("---- End training ----")
-        self.logger.info("---- Start validation----") 
-        model.predict(train_dataloader, valid_dataloader)
-        self.logger.info("---- End validation ----")
+
 
 
 

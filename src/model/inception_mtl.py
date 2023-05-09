@@ -94,9 +94,17 @@ class Classifier_INCEPTION:
 
         gap_layer = keras.layers.GlobalAveragePooling1D()(x)
 
-        #output_layer = keras.layers.Dense(nb_classes, activation='softmax')(gap_layer)
-        output_layer = keras.layers.Dense(nb_classes, activation='sigmoid')(gap_layer)
-        model = keras.models.Model(inputs=input_layer, outputs=output_layer)
+        output_layer = keras.layers.Dense(nb_classes, activation='softmax')(gap_layer)
+
+        # Add new classification heads
+        head1 = keras.layers.Dense(1, activation="sigmoid", name="head1")(output_layer)
+        head2 = keras.layers.Dense(1, activation="sigmoid", name="head2")(output_layer)
+        head3 = keras.layers.Dense(1, activation="sigmoid", name="head3")(output_layer)
+        head4 = keras.layers.Dense(1, activation="sigmoid", name="head4")(output_layer)
+        head5 = keras.layers.Dense(1, activation="sigmoid", name="head5")(output_layer)
+        head6 = keras.layers.Dense(1, activation="sigmoid", name="head6")(output_layer)
+        #output_layer = keras.layers.Dense(nb_classes, activation='sigmoid')(gap_layer)
+        model = keras.models.Model(inputs=input_layer, outputs=[head1, head2, head3,head4,head5,head6])
         
         # define the metrics.
         metrics = [
@@ -133,9 +141,15 @@ class Classifier_INCEPTION:
         duration = time.time() - start_time
         self.logger.info(f"==== Training time: {duration} seconds ====")
         self.model.save(self.output_directory /'last_model.hdf5')
-
-        # y_pred = self.predict(x_val, y_true, x_train, y_train, y_val,
-        #                       return_df_metrics=False)
+        x,y= valid_dataloader[0]
+        self.logger.info(f"x value: {x} and y value: {y}")
+        x_val=x
+        y_true=y 
+        
+        y_pred = self.predict(x_val, y_true,
+                               return_df_metrics=False)
+        
+        self.logger.info(f"model output: {y_pred} and y value: {y}")
 
         # # save predictions
         # # np.save(self.output_directory + 'y_pred.npy', y_pred)
@@ -151,13 +165,13 @@ class Classifier_INCEPTION:
 
         return self.model
 
-    def predict(self, x_test, y_true, x_train, y_train, y_test, return_df_metrics=True):
+    def predict(self, x_test, y_true, return_df_metrics=True):
         
         start_time = time.time()
         model_path = self.output_directory / 'last_model.hdf5'
         model = keras.models.load_model(model_path)
         y_pred = model.predict(x_test, batch_size=self.batch_size)
-        self.logger.info("predicted response",y_pred,"actual response",y_true)
+        #self.logger.info("predicted response",y_pred,"actual response",y_true)
         if return_df_metrics:
             y_pred = np.argmax(y_pred, axis=1)
             df_metrics = calculate_metrics(y_true, y_pred, 0.0)
