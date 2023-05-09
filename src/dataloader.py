@@ -53,11 +53,11 @@ class PrepareDataLoader():
             if not (preprocessed_file).is_file():
                 self.logger.info("WISDM not found. Preprocessing")
                 wisdm_df = self.preprocess_wisdm(save_df = True, dir = preprocessed_file)
-                if self.train_type == 'cl': self.prepare_herd_selection_data(es_df)
+                if self.train_type == 'cl': self.prepare_herd_selection_data(wisdm_df)
             elif self.experiment_config["force_preprocess"]:
                 self.logger.warning("WISDM found but force_preprocess is set to True. Preprocessing")
                 wisdm_df = self.preprocess_wisdm(save_df = True, dir = preprocessed_file)
-                if self.train_type == 'cl': self.prepare_herd_selection_data(es_df)
+                if self.train_type == 'cl': self.prepare_herd_selection_data(wisdm_df)
             else: # loading dataframe
                 self.logger.info("WISDM found. Loading")
                 wisdm_df = pd.read_csv(preprocessed_file) 
