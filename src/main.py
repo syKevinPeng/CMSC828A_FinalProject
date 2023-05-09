@@ -25,6 +25,8 @@ def main():
         log = get_logger(output_dir, "main")
         log.info(f"==== Experiment Config ====\n {exp_config}")
         log.info(f"==== Training Phase ====")
+        if exp_config['model_type'] not in ['baseline', 'cl', 'mtl']:
+            raise ValueError(f"Model type {exp_config['model_type']} not supported. Please choose from ['baseline', 'cl', 'mtl']")
         
         start_time = time.time()
         config["pretrain"]["start_time"] = start_time

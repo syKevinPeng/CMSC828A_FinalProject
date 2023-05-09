@@ -51,15 +51,15 @@ class PrepareDataLoader():
             print(f'Checking if WISDM is been preprocessed ...')
             preprocessed_file = Path(self.preprocess_config["wisdm_preprocessor"]["out"]['dir'])/f"preprocessed_wisdm.csv"
             if not (preprocessed_file).is_file():
-                print("WISDM not found. Preprocessing")
+                self.logger.info("WISDM not found. Preprocessing")
                 wisdm_df = self.preprocess_wisdm(save_df = True, dir = preprocessed_file)
-                if self.train_type == 'CL': self.prepare_herd_selection_data(es_df)
+                if self.train_type == 'cl': self.prepare_herd_selection_data(es_df)
             elif self.experiment_config["force_preprocess"]:
-                print("WISDM found but force_preprocess is set to True. Preprocessing")
+                self.logger.warning("WISDM found but force_preprocess is set to True. Preprocessing")
                 wisdm_df = self.preprocess_wisdm(save_df = True, dir = preprocessed_file)
-                if self.train_type == 'CL': self.prepare_herd_selection_data(es_df)
+                if self.train_type == 'cl': self.prepare_herd_selection_data(es_df)
             else: # loading dataframe
-                print("WISDM found. Loading")
+                self.logger.info("WISDM found. Loading")
                 wisdm_df = pd.read_csv(preprocessed_file) 
             dataset = wisdm_df
         else:
@@ -149,7 +149,9 @@ class PrepareDataLoader():
     
     # get herd selection data
     def prepare_herd_selection_data(self, es_df):
-        output_dir = Path(self.preprocess_config["extrasensory_preprocessor"]["out"]['dir'])
+        output_dir = Path(self.preprocess_config["wisdm_preprocessor"]["out"]['dir'])
+        print(f"output dir: {output_dir}")
+        exit()
         reserved_df, reserved_index = extrasensory.herd_selection(es_df, output_dir, logger = self.logger)
         reserved_df.to_csv(output_dir/'herd_samples.csv', index=False)
         np.save(output_dir/'herd_samples_index.npy', reserved_index)
