@@ -38,11 +38,11 @@ class PrepareDataLoader():
             if not (preprocessed_file).is_file():
                 self.logger.info("Extrasensory not found. Preprocessing")
                 es_df = self.preprocess_es(save_df = True, dir = preprocessed_file)
-                if self.train_type == 'CL': self.prepare_herd_selection_data(es_df)
+                # if self.train_type == 'CL': self.prepare_herd_selection_data(es_df)
             elif self.experiment_config["force_preprocess"]:
                 self.logger.warning("Extrasensory found but force_preprocess is set to True. Preprocessing")
                 es_df = self.preprocess_es(save_df = True, dir = preprocessed_file)
-                if self.train_type == 'CL': self.prepare_herd_selection_data(es_df)
+                # if self.train_type == 'CL': self.prepare_herd_selection_data(es_df)
             else:
                 self.logger.info("Extrasensory found. Loading")
                 es_df = pd.read_csv(preprocessed_file)
@@ -53,9 +53,11 @@ class PrepareDataLoader():
             if not (preprocessed_file).is_file():
                 print("WISDM not found. Preprocessing")
                 wisdm_df = self.preprocess_wisdm(save_df = True, dir = preprocessed_file)
+                if self.train_type == 'CL': self.prepare_herd_selection_data(es_df)
             elif self.experiment_config["force_preprocess"]:
                 print("WISDM found but force_preprocess is set to True. Preprocessing")
                 wisdm_df = self.preprocess_wisdm(save_df = True, dir = preprocessed_file)
+                if self.train_type == 'CL': self.prepare_herd_selection_data(es_df)
             else: # loading dataframe
                 print("WISDM found. Loading")
                 wisdm_df = pd.read_csv(preprocessed_file) 
