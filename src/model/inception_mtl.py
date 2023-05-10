@@ -97,14 +97,18 @@ class Classifier_INCEPTION:
         output_layer = keras.layers.Dense(nb_classes, activation='softmax')(gap_layer)
 
         # Add new classification heads
-        head1 = keras.layers.Dense(1, activation="sigmoid", name="head1")(output_layer)
-        head2 = keras.layers.Dense(1, activation="sigmoid", name="head2")(output_layer)
-        head3 = keras.layers.Dense(1, activation="sigmoid", name="head3")(output_layer)
-        head4 = keras.layers.Dense(1, activation="sigmoid", name="head4")(output_layer)
-        head5 = keras.layers.Dense(1, activation="sigmoid", name="head5")(output_layer)
-        head6 = keras.layers.Dense(1, activation="sigmoid", name="head6")(output_layer)
+
+        heads = []
+        for i in range(nb_classes):
+            head = keras.layers.Dense(1, activation="sigmoid", name=f"head{i+1}")(output_layer)
+            heads.append(head)
         #output_layer = keras.layers.Dense(nb_classes, activation='sigmoid')(gap_layer)
-        model = keras.models.Model(inputs=input_layer, outputs=[head1, head2, head3,head4,head5,head6])
+        model = keras.models.Model(inputs=input_layer, outputs=heads)
+
+        #define loss dictionary
+        loss_dict={}
+        for i in range(nb_classes):
+            loss_dict[f"head{i+1}"]='binary_crossentropy'
         
         # define the metrics.
         metrics = [
@@ -114,7 +118,7 @@ class Classifier_INCEPTION:
             tfa.metrics.F1Score(num_classes=nb_classes, average='macro', name='f1_score')
         ]
         # define loss function
-        model.compile(loss='binary_crossentropy', optimizer=keras.optimizers.Adam(),
+        model.compile(loss=loss_dict, optimizer=keras.optimizers.Adam(),
                       metrics=metrics)
         # don't need to modify anything down below
         reduce_lr = keras.callbacks.ReduceLROnPlateau(monitor='loss', factor=0.5, patience=50,
