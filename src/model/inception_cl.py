@@ -202,7 +202,8 @@ class InceptionWithCL:
             for (x_batch, y_batch) in (train_data_generator):
                 with tf.GradientTape() as tape:
                     logits = self.model(x_batch, training=True)
-                    loss_value = my_kd_loss(y_true=y_batch, y_pred=logits, inputs = x_batch, teacher_model=prev_model)
+                    # loss_value = my_kd_loss(y_true=y_batch, y_pred=logits, inputs = x_batch, teacher_model=prev_model)
+                    loss_value = tf.keras.losses.categorical_crossentropy(y_batch, logits)
                 grads = tape.gradient(loss_value, self.model.trainable_weights)
                 optimizer.apply_gradients(zip(grads, self.model.trainable_weights))
                 # update metrics

@@ -225,7 +225,7 @@ def herd_selection(df:pd.DataFrame, output_dir:Path, logger=None):
         label_df = df[df[label] == True]
         print(f'length of {label} is {len(label_df)}')
         # get the centroid of the label
-        label_df_feature = label_df.loc[:,['x','y','z','ro_xy','ro_xz','ro_yz']]
+        label_df_feature = label_df.loc[:,['x','y','z']]
         centroid = label_df_feature.mean(axis=0)
         # calculate the distance between each row and the centroid
         dist = label_df_feature.apply(lambda row: np.linalg.norm(row - centroid), axis=1).to_numpy()

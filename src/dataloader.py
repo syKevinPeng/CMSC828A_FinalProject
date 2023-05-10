@@ -140,8 +140,8 @@ class PrepareDataLoader():
     
     # read the csv reserved data
     def load_reserved_data(self, labels):
-        data_path = Path(self.preprocess_config["extrasensory_preprocessor"]["out"]['dir'])/f'herd_samples.csv'
-        index_path = Path(self.preprocess_config["extrasensory_preprocessor"]["out"]['dir'])/f'herd_samples_index.npy'
+        data_path = Path(self.preprocess_config["wisdm_preprocessor"]["out"]['dir'])/f'herd_samples.csv'
+        index_path = Path(self.preprocess_config["wisdm_preprocessor"]["out"]['dir'])/f'herd_samples_index.npy'
         if not data_path.is_file(): raise ValueError(f"Reserved data: {data_path} not found. Try to set force_preprocess to True")
         if not index_path.is_file(): raise ValueError(f"index file: {index_path} not found. Try to set force_preprocess to True")
         reserved_df = pd.read_csv(data_path)
@@ -152,8 +152,6 @@ class PrepareDataLoader():
     # get herd selection data
     def prepare_herd_selection_data(self, es_df):
         output_dir = Path(self.preprocess_config["wisdm_preprocessor"]["out"]['dir'])
-        print(f"output dir: {output_dir}")
-        exit()
         reserved_df, reserved_index = extrasensory.herd_selection(es_df, output_dir, logger = self.logger)
         reserved_df.to_csv(output_dir/'herd_samples.csv', index=False)
         np.save(output_dir/'herd_samples_index.npy', reserved_index)

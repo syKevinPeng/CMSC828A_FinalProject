@@ -18,6 +18,7 @@ class Trainer:
         self.universal_label = self.pretrain_config['universal_label']
         self.debug = self.experiment_config["debug"]
         self.learning_rate = self.experiment_config["learning_rate"]
+        self.load_cl_weights = self.experiment_config["load_cl_weights"]
     
     def train(self):
         if self.model_type in ['bl', 'baseline', 'Baseline']:
@@ -47,7 +48,7 @@ class Trainer:
         model = inception.Classifier_INCEPTION(self.output_dir, input_shape, nb_classes,
                                                                 verbose=verbose, 
                                                                 build=True, 
-                                                                depth = 5,
+                                                                depth = 2,
                                                                 nb_epochs = nb_epochs,
                                                                 use_bottleneck = False,
                                                                 lr = self.learning_rate
@@ -64,44 +65,51 @@ class Trainer:
         nb_epochs = self.experiment_config["training_epochs"]
         verbose = self.experiment_config["verbose"]
 
-        # ---- first iter -----
-        print('-'*10)
-        self.logger.info(f"Begin 1st iteration")
-        # sedentary_sitting_other and sedentary_lying are two labels get train first as they have the most number of data
-        seen_label = ['sedentary_sitting_other', 'sedentary_lying']
-        # get train data for the first two labels
-        self.logger.info(f"Loading data of label sedentary_sitting_other and sedentary_lying ...")
-        train_generator, valid_generator = dataloader.load_pretrain_data(
-                                                                                    labels = self.universal_label, 
-                                                                                    model_type = 'cl', 
-                                                                                    new_class=seen_label)
-        if self.debug:
-            for x, y in train_generator:
-                self.logger.info(f'first iter: x shape: {x.shape}, y shape: {y.shape}')
-                break
-       
-        if not self.output_dir.is_dir():
-            self.logger.warning(f"Parent directory {self.output_dir} not found. Creating directory")
-            self.output_dir.mkdir(parents=True, exist_ok=True)
-        self.logger.info(f"Start training labels: {seen_label}") 
-        nb_classes = len(seen_label)
+        if self.load_cl_weights:
+            self.logger.info(f"Loading weights from {self.experiment_config['cl_weights_file']}")
+            prev_model = keras.models.load_model(self.load_cl_weights)
+            prev_model.trainable = False
+            seen_label = ['sedentary_sitting_other', 'upright_standing']
+        else:
+            # ---- first iter -----
+            print('-'*10)
+            self.logger.info(f"Begin 1st iteration")
+            # sedentary_sitting_other and sedentary_lying are two labels get train first as they have the most number of data
+            seen_label = ['sedentary_sitting_other', 'upright_standing']
+            # get train data for the first two labels
+            self.logger.info(f"Loading data of label sedentary_sitting_other and upright_standing ...")
+            train_generator, valid_generator = dataloader.load_pretrain_data(
+                                                                                        labels = self.universal_label, 
+                                                                                        model_type = 'cl', 
+                                                                                        new_class=seen_label)
+            if self.debug:
+                for x, y in train_generator:
+                    self.logger.info(f'first iter: x shape: {x.shape}, y shape: {y.shape}')
+                    break
+        
+            if not self.output_dir.is_dir():
+                self.logger.warning(f"Parent directory {self.output_dir} not found. Creating directory")
+                self.output_dir.mkdir(parents=True, exist_ok=True)
+            self.logger.info(f"Start training labels: {seen_label}") 
+            nb_classes = len(seen_label)
 
-        # add channel dimension if needed
-        input_shape =(3,1)
-        output_dir = self.output_dir/"-".join(seen_label)
-        model = inception_cl.InceptionWithCL(output_dir, input_shape, nb_classes = len(self.universal_label), # force the model to predict all labels
-                                                                verbose=verbose, 
-                                                                build=True, 
-                                                                nb_epochs = nb_epochs,
-                                                                use_bottleneck = False,
-                                                                add_CN = False) # do not use cosline normalziaton in first iter
-        prev_model = model.fit(train_generator, valid_generator)
-        self.logger.info(f"End training : {seen_label}")
-        self.logger.info(f"End 1st iteration")
+            # add channel dimension if needed
+            input_shape =(3,1)
+            output_dir = self.output_dir/"-".join(seen_label)
+            model = inception_cl.InceptionWithCL(output_dir, input_shape, nb_classes = len(self.universal_label), # force the model to predict all labels
+                                                                    verbose=verbose, 
+                                                                    build=True, 
+                                                                    nb_epochs = nb_epochs,
+                                                                    use_bottleneck = False,
+                                                                    add_CN = False) # do not use cosline normalziaton in first iter
+            prev_model = model.fit(train_generator, valid_generator)
+            self.logger.info(f"End training : {seen_label}")
+            self.logger.info(f"End 1st iteration")
         # ---- second and following iter -----
         self.logger.info(f"Begin 2nd and following iteration:")
         # get unseen label
-        unseen_label = np.setdiff1d(all_labels, seen_label)
+        # unseen_label = np.setdiff1d(all_labels, seen_label)
+        unseen_label = ['upright_stepping']
         dataloader = PrepareDataLoader(self.pretrain_config, self.experiment_config)
         for label in unseen_label:
             print('-'*10)
@@ -135,7 +143,6 @@ class Trainer:
             self.logger.info(f"End training : {seen_label}")
         self.logger.info("---- End training ----")
 
-        # TODO: change the label of the prediction and ground truth to all class
 
 
     
