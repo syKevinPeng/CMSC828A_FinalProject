@@ -33,33 +33,74 @@ preprocessing: &preprocessing_config
       upright_stepping: es__walking
 
       # other 
-      cycling: es__bicycling 
+      cycling: es__bicycling
+  wisdm_preprocessor:
+    in:
+      dir: datasets/wisdm-dataset/raw/watch/
+    out:
+      save: true # wether to save the processed dataframe
+      dir: datasets/preprocessed/wisdm/
+    label:
+      - A # walking
+      - D # sitting
+      - E # Standing
+    label_converter: 
+      # sedentary activities 
+      D: sedentary_sitting_other
+      # upright activities 
+      E: upright_standing
+      A: upright_stepping
+    universal_label: *universal_label
 
 
 pretrain: &pretrain
   universal_label: *universal_label
   preprocessing_config: *preprocessing_config
+  # Data Preprocessing Related Config
+  dataset: wisdm # extrasensory dataset
 
-
+finetuning:
+  universal_label: *universal_label
+  preprocessing_config: *preprocessing_config
+    # Data Preprocessing Related Config
+  dataset: ES # wisdm dataset
 
 # specific experiment config:
-experiment:
+pretrain_exp:
   # experiment prefix/name will be will append to the output dir
-  exp_name: "mtl"
-  # Data Preprocessing Related Config
-  dataset: 
-    - ES # one of ["ES", "SOME OTHER DATASET: TBD"]
-  force_preprocess: false # if true, preprocess data again and overwrite existing files
+  exp_name: "pretrain_mtl"
+  force_preprocess: False # if true, preprocess data again and overwrite existing files
 
   # Training Related Config
-  training_epochs: &default_epochs 1
+  training_epochs: 50
   output_directory: "./checkpoints"
+  verbose: False # whether to explicitly print out training progress
+  model_type: "mtl" # one of ["baseline","cl", "mtl"]
   batch_size: 8
   valid_raio: 0.1 # the portion of data to be used for validation
-  verbose: true # whether to explicitly print out training progress
-  model_type: "mtl" # one of ["baseline","cl", "mtl"]
+  learning_rate: 0.001
 
   # debug # only run 100 training and validation samples
-  debug: true
+  debug: False
+
+  load_cl_weights: true
+  cl_weights_file: /home/siyuan/class/cmsc828a_finalproject/checkpoints/pretrain_cl/sedentary_sitting_other-upright_standing/last_model.hdf5
+
+finetuning_exp: 
+  # experiment prefix/name will be will append to the output dir
+  exp_name: "ft_mtl"
+  force_preprocess: true # if true, preprocess data again and overwrite existing files
+
+  # Training Related Config
+  training_epochs:  30
+  output_directory: "./checkpoints"
+  verbose: false # whether to explicitly print out training progress
+  model_type: "mtl" # one of ["baseline","cl", "mtl"]
+  batch_size: 8
+  valid_raio: 0.1 # the portion of data to be used for validation
+  learning_rate: 0.0001
+
+  # debug # only run 100 training and validation samples
+  debug: false
 
 

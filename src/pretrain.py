@@ -18,7 +18,8 @@ class Trainer:
         self.universal_label = self.pretrain_config['universal_label']
         self.debug = self.experiment_config["debug"]
         self.learning_rate = self.experiment_config["learning_rate"]
-        self.load_cl_weights = self.experiment_config["load_cl_weights"]
+        if self.model_type in ['cl', 'CL','ContinueLearning']:
+            self.load_cl_weights = self.experiment_config["load_cl_weights"]
     
     def train(self):
         if self.model_type in ['bl', 'baseline', 'Baseline']:
