@@ -78,13 +78,13 @@ pretrain_exp:
   model_type: "baseline" # one of ["baseline","cl", "mtl"]
   batch_size: 8
   valid_raio: 0.1 # the portion of data to be used for validation
-  learning_rate: 0.001
+  learning_rate: 0.0001
 
   # debug # only run 100 training and validation samples
   debug: False
-
-  load_CL_weights: true
+  load_cl_weights: true
   cl_weights_file: /home/siyuan/class/cmsc828a_finalproject/checkpoints/pretrain_cl/sedentary_sitting_other-upright_standing/last_model.hdf5
+
 
 finetuning_exp: 
   # experiment prefix/name will be will append to the output dir
