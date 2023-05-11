@@ -124,8 +124,7 @@ class Trainer:
             output_dir = self.output_dir/"-".join(seen_label)  
             model = inception_cl.InceptionWithCL(output_dir, input_shape, nb_classes = len(self.universal_label), # force the model to predict all labels
                                                                 verbose=verbose, 
-                                                                build=True, 
-                                                                batch_size=batch_size,
+                                                                build=True,
                                                                 nb_epochs = nb_epochs,
                                                                 use_bottleneck = False,
                                                                 add_CN = _add_CN,
@@ -161,13 +160,18 @@ class Trainer:
             self.output_dir.mkdir(parents=True, exist_ok=True)
         nb_classes = len(self.universal_label)
 
+        # for x, y in train_dataloader:
+        #     print(y)
+        #     exit()
         input_shape =(3,1)
         ## DO NOT SET BATCH SIZE HERE
-        model = inception_mtl.Classifier_INCEPTION(self.output_dir, input_shape, nb_classes,
+
+        model = inception_mtl.MTL_Classifier_INCEPTION(self.output_dir, input_shape, nb_classes,
                                                                 verbose=verbose, 
                                                                 build=True, 
                                                                 nb_epochs = nb_epochs,
-                                                                use_bottleneck = False
+                                                                use_bottleneck = False,
+                                                                lr=self.learning_rate
                                                                 )
         self.logger.info("---- Start training ----") 
         model.fit(train_dataloader, valid_dataloader)

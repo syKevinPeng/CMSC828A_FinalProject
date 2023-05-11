@@ -10,14 +10,13 @@ import tensorflow as tf
 from utils.inception_utils import save_logs
 from utils.inception_utils import calculate_metrics
 from utils.inception_utils import save_test_duration
-from utils.utils import TrainingCallback
+from utils.utils import TrainingCallback, MTLTrainingCallback, get_logger
 import tensorflow_addons as tfa
-from utils.utils import get_logger
 from pathlib import Path
-class Classifier_INCEPTION:
+class MTL_Classifier_INCEPTION:
 
     def __init__(self, output_directory, input_shape, nb_classes, verbose=False, build=True, batch_size=1,
-                 nb_filters=32, use_residual=True, use_bottleneck=True, depth=6, kernel_size=41, nb_epochs=1500):
+                 nb_filters=32, use_residual=True, use_bottleneck=True, depth=6, kernel_size=41, nb_epochs=1500, lr=0.0001,):
 
         self.output_directory = output_directory
 
@@ -31,9 +30,10 @@ class Classifier_INCEPTION:
         self.bottleneck_size = 32
         self.nb_epochs = nb_epochs
         self.logger = get_logger(self.output_directory, "INCEPTION")
+        self.lr = lr
         if build == True:
             self.model = self.build_model(input_shape, nb_classes)
-            if (verbose == True):
+            if verbose:
                 self.logger.info(self.model.summary())
             self.verbose = verbose
             self.model.save_weights(self.output_directory / 'model_init.hdf5')
@@ -78,6 +78,7 @@ class Classifier_INCEPTION:
         return x
 
     def build_model(self, input_shape, nb_classes):
+        self.logger.info('Building model ...')
         # model archtecture
         input_layer = keras.layers.Input(input_shape)
 
@@ -94,13 +95,11 @@ class Classifier_INCEPTION:
 
         gap_layer = keras.layers.GlobalAveragePooling1D()(x)
 
-        output_layer = keras.layers.Dense(nb_classes, activation='softmax')(gap_layer)
-
-        # Add new classification heads
+        # output_layer = keras.layers.Dense(nb_classes, activation='relu')(gap_layer)
 
         heads = []
         for i in range(nb_classes):
-            head = keras.layers.Dense(1, activation="sigmoid", name=f"head{i+1}")(output_layer)
+            head = keras.layers.Dense(1, activation="sigmoid", name=f"head{i+1}")(gap_layer)
             heads.append(head)
         #output_layer = keras.layers.Dense(nb_classes, activation='sigmoid')(gap_layer)
         model = keras.models.Model(inputs=input_layer, outputs=heads)
@@ -111,24 +110,31 @@ class Classifier_INCEPTION:
             loss_dict[f"head{i+1}"]='binary_crossentropy'
         
         # define the metrics.
-        metrics = [
-            tf.keras.metrics.Precision(name='precision'),
-            tf.keras.metrics.Recall(name='recall'),
-            tf.keras.metrics.CategoricalAccuracy(name="accuracy"),
-            tfa.metrics.F1Score(num_classes=nb_classes, average='macro', name='f1_score')
-        ]
+        def get_metrics(name):
+            metrics = [
+            tf.keras.metrics.Precision(name=f'{name}_precision'),
+            tf.keras.metrics.Recall(name=f'{name}_recall'),
+            tf.keras.metrics.CategoricalAccuracy(name=f"{name}_accuracy"),
+            tfa.metrics.F1Score(num_classes=1, average='macro', name=f'{name}_f1_score')
+            ]
+            return metrics
+
+        metrics_dict = {}
+        for i in range(nb_classes):
+            metrics_dict[f"head{i+1}"] = get_metrics(f"head{i+1}")
+            
         # define loss function
-        model.compile(loss=loss_dict, optimizer=keras.optimizers.Adam(),
-                      metrics=metrics)
+        model.compile(loss=loss_dict, optimizer=keras.optimizers.Adam(learning_rate=self.lr),
+                      metrics=metrics_dict)
         # don't need to modify anything down below
         reduce_lr = keras.callbacks.ReduceLROnPlateau(monitor='loss', factor=0.5, patience=50,
                                                       min_lr=0.0001)
-        weight_format = 'epoch-{epoch:02d}-val_acc-{val_accuracy:.4f}-train_acc-{accuracy:.4f}-precision-{precision:.4f}-recall-{recall:.4f}.h5'
+        weight_format = 'epoch-{epoch:02d}.h5'
         file_path = self.output_directory / weight_format
 
         model_checkpoint = keras.callbacks.ModelCheckpoint(filepath=file_path, monitor='loss',
                                                            save_best_only=False)
-        my_callback = TrainingCallback(self.output_directory, "Training")
+        my_callback = MTLTrainingCallback(self.output_directory, "Training", metrics_dict=metrics_dict)
         self.callbacks = [reduce_lr, model_checkpoint, my_callback]
 
         return model

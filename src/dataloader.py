@@ -123,9 +123,13 @@ class PrepareDataLoader():
             return cl_dataloader_train, cl_dataloader_valid
         elif model_type == "mtl":
             train_df, valid_df = self.prepare_data_split()
+            # debug
+            if self.debug:
+                train_df = train_df.iloc[:100]
+                valid_df = valid_df.iloc[:100]
             # Convert data to batches  Temporary solution to see if things work
-            dataloader_train = DataLoader(train_df, self.experiment_config, labels)
-            dataloader_valid = DataLoader(valid_df, self.experiment_config, labels)
+            dataloader_train = MTLDataLoader(train_df, self.experiment_config, labels)
+            dataloader_valid = MTLDataLoader(valid_df, self.experiment_config, labels)
             return dataloader_train, dataloader_valid
     def load_finetuning_data(self, label, model_type, partition):
         if partition not in ['train', 'valid']:
@@ -210,6 +214,31 @@ class DataLoader(keras.utils.Sequence):
             x = x.reshape((x.shape[0], x.shape[1], 1))
         x = tf.convert_to_tensor(x, dtype=tf.float32)
         y = tf.convert_to_tensor(y, dtype=tf.float32)
+        return x, y
+
+# dataloader for baseline training
+class MTLDataLoader(keras.utils.Sequence):
+    def __init__(self, input_df:pd.DataFrame, experiment_config, labels):
+        self.input_df = input_df
+        self.batch_size = experiment_config['batch_size']
+        self.labels = labels
+        self.indexes = np.arange(len(self.input_df))
+    
+    def __len__(self):
+        return int(np.floor(len(self.input_df)/self.batch_size))
+    
+    def __getitem__(self, index):
+        indexes = self.indexes[index*self.batch_size:(index+1)*self.batch_size]
+        batch_df = self.input_df.iloc[indexes]
+        x = batch_df[['x', 'y', 'z']].to_numpy()
+        y = batch_df[self.labels].to_numpy()
+        if len(x.shape) == 2: 
+            x = x.reshape((x.shape[0], x.shape[1], 1))
+        y = [y[:, i].reshape(-1,1) for i in range(len(y[0]))]
+        names = [f"head{i+1}" for i in range(len(y))]
+        x = tf.convert_to_tensor(x, dtype=tf.float32)
+        y = tf.convert_to_tensor(y, dtype=tf.float32)
+        y = dict(zip(names, y))
         return x, y
     
 # dataloader used for CL training, specifically it merge the reserved data and the current batch data
