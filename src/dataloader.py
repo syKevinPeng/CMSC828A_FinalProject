@@ -131,11 +131,16 @@ class PrepareDataLoader():
             dataloader_train = MTLDataLoader(train_df, self.experiment_config, labels)
             dataloader_valid = MTLDataLoader(valid_df, self.experiment_config, labels)
             return dataloader_train, dataloader_valid
+    
     def load_finetuning_data(self, label, model_type, partition):
         if partition not in ['train', 'valid']:
             raise ValueError(f"Partition {partition} not supported")
         if model_type == 'baseline':
-            pass
+            train_df, valid_df = self.prepare_data_split()
+            # Convert data to batches
+            dataloader_train = DataLoader(train_df, self.experiment_config, label)
+            dataloader_valid = DataLoader(valid_df, self.experiment_config, label)
+            return dataloader_train, dataloader_valid
         elif model_type == 'cl':
             pass
         elif model_type == 'mtl':

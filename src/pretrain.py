@@ -18,8 +18,9 @@ class Trainer:
         self.universal_label = self.pretrain_config['universal_label']
         self.debug = self.experiment_config["debug"]
         self.learning_rate = self.experiment_config["learning_rate"]
-        if self.model_type in ['cl', 'CL','ContinueLearning']:
-            self.load_cl_weights = self.experiment_config["load_cl_weights"]
+        self.load_weights = self.experiment_config["load_weights"]
+        if self.load_weights:
+            self.weights_file = self.experiment_config["weights_file"]
     
     def train(self):
         if self.model_type in ['bl', 'baseline', 'Baseline']:
@@ -66,9 +67,9 @@ class Trainer:
         nb_epochs = self.experiment_config["training_epochs"]
         verbose = self.experiment_config["verbose"]
 
-        if self.load_cl_weights:
+        if self.weights_file:
             self.logger.info(f"Loading weights from {self.experiment_config['cl_weights_file']}")
-            prev_model = keras.models.load_model(self.load_cl_weights)
+            prev_model = keras.models.load_model(self.experiment_config['cl_weights_file'])
             prev_model.trainable = False
             seen_label = ['sedentary_sitting_other', 'upright_standing']
         else:
@@ -159,12 +160,7 @@ class Trainer:
             self.logger.warning(f"Parent directory {self.output_dir} not found. Creating directory")
             self.output_dir.mkdir(parents=True, exist_ok=True)
         nb_classes = len(self.universal_label)
-
-        # for x, y in train_dataloader:
-        #     print(y)
-        #     exit()
         input_shape =(3,1)
-        ## DO NOT SET BATCH SIZE HERE
 
         model = inception_mtl.MTL_Classifier_INCEPTION(self.output_dir, input_shape, nb_classes,
                                                                 verbose=verbose, 
@@ -173,6 +169,9 @@ class Trainer:
                                                                 use_bottleneck = False,
                                                                 lr=self.learning_rate
                                                                 )
+        if self.load_weights:
+                self.logger.info(f"Loading weights from {self.experiment_config['weights_file']}")
+                model.model.load_weights(self.experiment_config['weights_file'])
         self.logger.info("---- Start training ----") 
         model.fit(train_dataloader, valid_dataloader)
         self.logger.info("---- End training ----")
