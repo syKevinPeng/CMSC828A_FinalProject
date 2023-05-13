@@ -68,7 +68,7 @@ finetuning:
 # specific experiment config:
 pretrain_exp:
   # experiment prefix/name will be will append to the output dir
-  exp_name: "pretrain_mtl"
+  exp_name: "pretrain_mtl_ctl"
   force_preprocess: False # if true, preprocess data again and overwrite existing files
 
   # Training Related Config
@@ -81,7 +81,7 @@ pretrain_exp:
   learning_rate: 0.0001
 
   # debug # only run 100 training and validation samples
-  debug: true
+  debug: False
   load_weights: true
   weights_file: /home/siyuan/class/cmsc828a_finalproject/pre_traincheckpoints/pretrain_mtl/epoch-07.h5
 
