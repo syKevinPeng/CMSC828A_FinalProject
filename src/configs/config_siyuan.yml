@@ -68,22 +68,22 @@ finetuning:
 # specific experiment config:
 pretrain_exp:
   # experiment prefix/name will be will append to the output dir
-  exp_name: "pretrain_cl"
+  exp_name: "pretrain_mtl"
   force_preprocess: False # if true, preprocess data again and overwrite existing files
 
   # Training Related Config
   training_epochs: 25
   output_directory: "./checkpoints/"
   verbose: True # whether to explicitly print out training progress
-  model_type: "cl" # one of ["baseline","cl", "mtl"]
+  model_type: "mtl" # one of ["baseline","cl", "mtl"]
   batch_size: 8
   valid_raio: 0.1 # the portion of data to be used for validation
   learning_rate: 0.0001
 
   # debug # only run 100 training and validation samples
-  debug: False
-  load_cl_weights: true
-  cl_weights_file: /home/siyuan/class/cmsc828a_finalproject/checkpoints/pretrain_cl/sedentary_sitting_other-upright_standing/epoch-22-val_acc-0.5176-train_acc-0.9780-precision-0.9780-recall-0.9780.h5
+  debug: true
+  load_weights: true
+  weights_file: /home/siyuan/class/cmsc828a_finalproject/pre_traincheckpoints/pretrain_mtl/epoch-07.h5
 
 
 finetuning_exp: 
@@ -92,13 +92,14 @@ finetuning_exp:
   force_preprocess: true # if true, preprocess data again and overwrite existing files
 
   # Training Related Config
-  training_epochs:  30
+  training_epochs:  10
   output_directory: "./checkpoints"
-  verbose: false # whether to explicitly print out training progress
+  verbose: true # whether to explicitly print out training progress
   model_type: "baseline" # one of ["baseline","cl", "mtl"]
   batch_size: 8
   valid_raio: 0.8 # the portion of data to be used for validation
   learning_rate: 0.00005
+  pretrained_weights: /home/siyuan/class/cmsc828a_finalproject/pre_traincheckpoints/pretrain_baseline/epoch-34-val_acc-0.3186-train_acc-0.9528-precision-0.9571-recall-0.9490.h5
 
   # debug # only run 100 training and validation samples
   debug: true
