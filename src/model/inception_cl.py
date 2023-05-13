@@ -175,6 +175,8 @@ class InceptionWithCL:
         gap_layer = self.model.layers[-2].output
         output_layer = CosineLinear(in_features=gap_layer.shape[-1], 
                                     out_features = self.nb_classes)(gap_layer)
+        output_layer = keras.layers.Activation('softmax')(output_layer)
+        
         self.model = keras.models.Model(inputs=self.model.input, outputs=output_layer)
         if not tf.test.is_built_with_cuda():
             raise Exception('error no gpu')

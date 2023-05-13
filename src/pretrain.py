@@ -68,7 +68,7 @@ class Trainer:
 
         if self.load_cl_weights:
             self.logger.info(f"Loading weights from {self.experiment_config['cl_weights_file']}")
-            prev_model = keras.models.load_model(self.load_cl_weights)
+            prev_model = keras.models.load_model(self.experiment_config['cl_weights_file'])
             prev_model.trainable = False
             seen_label = ['sedentary_sitting_other', 'upright_standing']
         else:
