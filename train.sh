@@ -11,6 +11,6 @@ set -x
 
 srun bash -c "source /fs/classhomes/spring2023/cmsc828a/<your directory>/.profile;\
 python3 src/main.py \
-    --config src/configs/<your config>\
-    --train"
+    --config src/configs/config_siyuan.yml\
+    --finetuning"
  
