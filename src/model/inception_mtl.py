@@ -142,57 +142,17 @@ class MTL_Classifier_INCEPTION:
     def fit(self, train_dataloader, valid_dataloader, plot_test_acc=False, save_log = False):
         if not tf.test.is_built_with_cuda():
             raise Exception('error no gpu')
-        # x_val and y_val are only used to monitor the test loss and NOT for training
-
-
         start_time = time.time()
         hist = self.model.fit(x=train_dataloader, epochs=self.nb_epochs,
                                   verbose=self.verbose, validation_data=valid_dataloader, callbacks=self.callbacks)
         duration = time.time() - start_time
         self.logger.info(f"==== Training time: {duration} seconds ====")
         self.model.save(self.output_directory /'last_model.hdf5')
-        x,y= valid_dataloader[0]
-        self.logger.info(f"x value: {x} and y value: {y}")
-        x_val=x
-        y_true=y 
-        
-        y_pred = self.predict(x_val, y_true,
-                               return_df_metrics=False)
-        
-        self.logger.info(f"model output: {y_pred} and y value: {y}")
-
-        # # save predictions
-        # # np.save(self.output_directory + 'y_pred.npy', y_pred)
-
-        # # convert the predicted from binary to integer
-        # y_pred = np.argmax(y_pred, axis=1)
-
-        # if save_log:
-        #     df_metrics = save_logs(self.output_directory, hist, y_pred, y_true, duration,
-        #                        plot_test_acc=plot_test_acc)
-
         keras.backend.clear_session()
 
         return self.model
 
-    def predict(self, x_test, y_true, return_df_metrics=True):
         
-        start_time = time.time()
-        model_path = self.output_directory / 'last_model.hdf5'
-        model = keras.models.load_model(model_path)
-        y_pred = model.predict(x_test, batch_size=self.batch_size)
-        #self.logger.info("predicted response",y_pred,"actual response",y_true)
-        if return_df_metrics:
-            y_pred = np.argmax(y_pred, axis=1)
-            df_metrics = calculate_metrics(y_true, y_pred, 0.0)
-            return df_metrics
-        else:
-            test_duration = time.time() - start_time
-            save_test_duration(self.output_directory /'test_duration.csv', test_duration)
-            return y_pred
-        
-        
-    
     def load_model_from_weights(self, weights_path):
         self.model.load_weights(weights_path.as_posix())
         self.logger.info(f"Loading model from weights at {weights_path.as_posix()}")

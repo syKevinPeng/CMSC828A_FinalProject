@@ -1,7 +1,7 @@
 from re import A
 import pandas as pd
 import numpy as np
-from regex import B
+from regex import B, D
 
 import tensorflow as tf
 import sys
@@ -159,7 +159,14 @@ class PrepareDataLoader():
             cl_dataloader_valid = DataLoader(valid_df, self.experiment_config, self.universal_label)
             return cl_dataloader_train, cl_dataloader_valid
         elif model_type == 'mtl':
-            pass
+            train_df, valid_df = self.prepare_data_split()
+            if self.debug:
+                train_df = train_df.iloc[:100]
+                valid_df = valid_df.iloc[:100]
+            # Convert data to batches  Temporary solution to see if things work
+            dataloader_train = MTLDataLoader(train_df, self.experiment_config, labels)
+            dataloader_valid = MTLDataLoader(valid_df, self.experiment_config, labels)
+            return dataloader_train, dataloader_valid
         
 
     # read the csv reserved data
@@ -265,7 +272,7 @@ class MTLDataLoader(keras.utils.Sequence):
         indexes = self.indexes[index*self.batch_size:(index+1)*self.batch_size]
         batch_df = self.input_df.iloc[indexes]
         x = batch_df[['x', 'y', 'z']].to_numpy()
-        y = batch_df[self.labels].to_numpy()
+        y = batch_df[self.labels].to_numpy(dtype=np.float32)
         if len(x.shape) == 2: 
             x = x.reshape((x.shape[0], x.shape[1], 1))
         y = [y[:, i].reshape(-1,1) for i in range(len(y[0]))]

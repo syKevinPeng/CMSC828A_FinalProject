@@ -1,6 +1,6 @@
 import pathlib, datetime
 from dataloader import PrepareDataLoader
-from model import inception, inception_cl, KD_loss
+from model import inception, inception_cl, KD_loss,  inception_mtl
 from utils.utils import get_logger
 import numpy as np
 from tensorflow import keras
@@ -139,7 +139,7 @@ class Trainer:
         # load data
         dataloader = PrepareDataLoader(self.finetuning_config, self.experiment_config)
         self.logger.info(f"Loading data ...")
-        train_dataloader, valid_dataloader  = dataloader.load_pretrain_data(labels = self.universal_label, model_type = "baseline")
+        train_dataloader, valid_dataloader  = dataloader.load_pretrain_data(labels = self.universal_label, model_type = "mtl")
         if not self.output_dir.is_dir():
             self.logger.warning(f"Parent directory {self.output_dir} not found. Creating directory")
             self.output_dir.mkdir(parents=True, exist_ok=True)
@@ -147,10 +147,10 @@ class Trainer:
 
         input_shape =(3,1)
         ## DO NOT SET BATCH SIZE HERE
-        model = inception.Classifier_INCEPTION(self.output_dir, input_shape, nb_classes,
+        model = inception_mtl.MTL_Classifier_INCEPTION(self.output_dir, input_shape, nb_classes,
                                                                 verbose=verbose, 
                                                                 build=True, 
-                                                                depth = 2,
+                                                                depth = 6,
                                                                 nb_epochs = nb_epochs,
                                                                 use_bottleneck = False,
                                                                 lr = self.learning_rate
