@@ -99,7 +99,9 @@ finetuning_exp:
   batch_size: 8
   valid_raio: 0.8 # the portion of data to be used for validation
   learning_rate: 0.00005
-  pretrained_weights: /home/siyuan/class/cmsc828a_finalproject/pre_traincheckpoints/pretrain_baseline/epoch-34-val_acc-0.3186-train_acc-0.9528-precision-0.9571-recall-0.9490.h5
+
+  load_weights: true
+  weights_file: /home/siyuan/class/cmsc828a_finalproject/pre_traincheckpoints/pretrain_baseline/epoch-34-val_acc-0.3186-train_acc-0.9528-precision-0.9571-recall-0.9490.h5
 
   # debug # only run 100 training and validation samples
   debug: true

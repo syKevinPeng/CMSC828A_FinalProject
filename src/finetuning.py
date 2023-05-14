@@ -17,7 +17,9 @@ class Trainer:
         self.universal_label = self.finetuning_config['universal_label']
         self.debug = self.experiment_config["debug"]
         self.learning_rate = self.experiment_config["learning_rate"]
-        self.pretrained_weights = Path(self.experiment_config["pretrained_weights"])
+        self.load_weights = self.experiment_config["load_weights"]
+        if self.load_weights:
+            self.weights_file = self.experiment_config["weights_file"]
 
     def train(self):
         if self.model_type in ['bl', 'baseline', 'Baseline']:
@@ -50,10 +52,9 @@ class Trainer:
                                                                 lr = self.learning_rate
                                                                 )
         # load pretrained weights
-        if not self.pretrained_weights.is_file():
-            raise ValueError(f"Pretrained weights not found at {self.pretrained_weights}")
-        model.load_weights(self.pretrained_weights)
-        self.logger.info(f"Pretrained weights loaded from {self.pretrained_weights}")
+        if self.load_weights:
+                self.logger.info(f"Loading weights from {self.experiment_config['weights_file']}")
+                model.model.load_weights(self.experiment_config['weights_file'])
         self.logger.info("---- Start training ----") 
         model.fit(train_dataloader, valid_dataloader)
         self.logger.info("---- End training ----")
