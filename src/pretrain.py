@@ -145,9 +145,6 @@ class Trainer:
         self.logger.info("---- End training ----")
 
 
-
-    
-    # TODO train multitask learning  Temporry using baseling to test
     def train_mtl(self):
         batch_size = self.experiment_config["batch_size"]
         nb_epochs = self.experiment_config["training_epochs"]

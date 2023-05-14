@@ -60,7 +60,79 @@ class Trainer:
         self.logger.info("---- End training ----")
     
     def ft_cl(self):
-        pass
+        # initialize dataloader
+        dataloader = PrepareDataLoader(self.finetune_config, self.experiment_config)
+        all_labels = self.pretrain_config['universal_label']
+        nb_epochs = self.experiment_config["training_epochs"]
+        verbose = self.experiment_config["verbose"]
+
+        # ---- first iter -----
+        print('-'*10)
+        self.logger.info(f"Begin 1st iteration")
+        seen_label = ['sedentary_sitting_other', 'upright_standing','upright_stepping']
+        # get train data for the first two labels
+        self.logger.info(f"Loading data of label {seen_label} ...")
+        train_generator, valid_generator = dataloader.load_pretrain_data(
+                                                                                    labels = self.universal_label, 
+                                                                                    model_type = 'cl', 
+                                                                                    new_class=seen_label)
+        self.logger.info(f"Start training labels: {seen_label}") 
+        nb_classes = len(seen_label)
+        # add channel dimension if needed
+        input_shape =(3,1)
+        output_dir = self.output_dir/"-".join(seen_label)
+        model = inception_cl.InceptionWithCL(output_dir, input_shape, nb_classes = len(self.universal_label), # force the model to predict all labels
+                                                                verbose=verbose, 
+                                                                build=False, 
+                                                                nb_epochs = nb_epochs,
+                                                                use_bottleneck = False,
+                                                                add_CN = False,
+                                                                lr=self.learning_rate) 
+        # load pretrained weights
+        if self.load_weights:
+                self.logger.info(f"Loading weights from {self.experiment_config['weights_file']}")
+                model.model.load_weights(self.experiment_config['weights_file'])
+
+        prev_model = model.fit_kd(train_generator, valid_generator, prev_model = None)
+        self.logger.info(f"End training : {seen_label}")
+        self.logger.info(f"End 1st iteration")
+        # ---- second and following iter -----
+        self.logger.info(f"Begin 2nd and following iteration:")
+        # get unseen label
+        unseen_label = ['sedentary_sitting_transport', 'sedentary_lying', 'cycling']
+        for label in unseen_label:
+            print('-'*10)
+            self.logger.info(f"Start training labels: {np.append(seen_label,label)}") 
+            nb_classes = len(seen_label)
+            prev_weights_path = self.output_dir/"-".join(seen_label)/'last_model.hdf5'
+            input_shape =(3,1)
+            # construct output file
+            _add_CN = False if len(seen_label) == 2 else True
+            seen_label = np.append(seen_label, label)
+            output_dir = self.output_dir/"-".join(seen_label)  
+            model = inception_cl.InceptionWithCL(output_dir, input_shape, nb_classes = len(self.universal_label), # force the model to predict all labels
+                                                                verbose=verbose, 
+                                                                build=False,
+                                                                nb_epochs = nb_epochs//2,
+                                                                use_bottleneck = False,
+                                                                add_CN = _add_CN,
+                                                                lr=self.learning_rate) # use cosline normalziaton in second and following iter
+            model.load_model_from_weights(prev_weights_path)
+            self.logger.info(f"Loading data of label {seen_label} ...")
+            train_df, valid_df= dataloader.load_pretrain_data(
+                                                                                    labels = seen_label, 
+                                                                                    model_type = 'cl', 
+                                                                                    new_class = [label])
+            if self.debug:
+                for x, y in train_generator:
+                    self.logger.info(f'second and following iter: x shape: {x.shape}, y shape: {y.shape}')
+                    break
+            prev_model = model.fit_kd(train_df, valid_df, prev_model)
+            self.logger.info(f"End training : {seen_label}")
+        self.logger.info("---- End training ----")
+
+
+
     
     def ft_mtl(self):
         pass
