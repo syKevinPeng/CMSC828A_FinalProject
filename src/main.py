@@ -3,7 +3,7 @@ import logging
 import yaml
 import tensorflow as tf
 import time
-import pretrain, finetuning
+import pretrain, finetuning, evaluate
 from utils.utils import get_logger
 from pathlib import Path
 
@@ -13,6 +13,7 @@ def main():
     parser.add_argument("--config", type=str, default="configs/config_siyuan.yaml")
     parser.add_argument("--train", action="store_true")
     parser.add_argument(f'--finetuning', action='store_true')
+    parser.add_argument("--evaluate", action="store_true")
     args = parser.parse_args()
 
     assert args.config, "Please specify the config file"
@@ -47,6 +48,14 @@ def main():
         trainer.train()
         end_time = time.time()
         log.info(f"Overall Finetuning time: {end_time - start_time}")
+    if args.evaluate:
+        exp_config = config['evaluate_exp']
+        output_dir = Path(exp_config["output_directory"])/exp_config['exp_name']
+        log = get_logger(output_dir, "main")
+        log.info(f"==== Experiment Config ====\n {exp_config}")
+        log.info(f"==== Evaluation Phase ====")
 
+        evaluator = evaluate.Evaluator(exp_config, config["evaluate"])
+        evaluator.evaluate()
 if __name__ == "__main__":
     main()

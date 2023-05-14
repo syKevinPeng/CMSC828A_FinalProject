@@ -41,6 +41,15 @@ class TrainingCallback(keras.callbacks.Callback):
         self.logger.info(f'---------Final Metrics---------')
         self.logger.info(logs)
 
+# customized callback only for evaluation mode
+class EvaluateCallback(keras.callbacks.Callback):
+    def __init__(self, output_dir, name, epoch_num):
+        self.logger = get_logger(output_dir, name)
+        self.epoch_num = epoch_num
+    def on_test_end(self, logs=None):
+        self.logger.info(f'Epoch {self.epoch_num} : {logs}')
+    
+
 class MTLTrainingCallback(keras.callbacks.Callback):
     def __init__(self, output_dir, name, metrics_dict):
         self.logger = get_logger(output_dir, name)
