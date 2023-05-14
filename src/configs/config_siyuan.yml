@@ -86,7 +86,7 @@ pretrain_exp:
   learning_rate: 0.0001
 
   # debug # only run 100 training and validation samples
-  debug: True
+  debug: False
   load_weights: true
   weights_file: /home/siyuan/class/cmsc828a_finalproject/pre_traincheckpoints/pretrain_mtl/epoch-07.h5
 
