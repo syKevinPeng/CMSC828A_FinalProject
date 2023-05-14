@@ -45,6 +45,7 @@ def main():
         config["finetuning"]["start_time"] = start_time
         trainer = finetuning.Trainer(exp_config, config["finetuning"])
         trainer.train()
+        end_time = time.time()
         log.info(f"Overall Finetuning time: {end_time - start_time}")
 
 if __name__ == "__main__":

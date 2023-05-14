@@ -140,7 +140,7 @@ class Trainer:
                 for x, y in train_generator:
                     self.logger.info(f'second and following iter: x shape: {x.shape}, y shape: {y.shape}')
                     break
-            prev_model = model.fit_kd(train_df, valid_df, prev_model)
+            prev_model = model.fit_kd(train_df, valid_df, loaded_model=False)
             self.logger.info(f"End training : {seen_label}")
         self.logger.info("---- End training ----")
 

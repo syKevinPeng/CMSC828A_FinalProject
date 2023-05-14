@@ -116,34 +116,34 @@ class InceptionWithCL:
         gap_layer = keras.layers.GlobalAveragePooling1D()(x)
 
         if add_cosine_layer:
-            output_layer = CosineLinear(in_features=gap_layer.shape[-1], 
-                                    out_features = nb_classes)(gap_layer)
+            output_layer = CosineLinear(in_features=gap_layer.shape[-1],out_features = self.nb_classes)(gap_layer)
+            output_layer = keras.layers.Activation('softmax')(output_layer)
         else:
             output_layer = keras.layers.Dense(nb_classes, activation='softmax')(gap_layer)
 
         model = keras.models.Model(inputs=input_layer, outputs=output_layer)
         
-        # define the metrics.
-        metrics = [
-            tf.keras.metrics.Precision(name='precision'),
-            tf.keras.metrics.Recall(name='recall'),
-            tf.keras.metrics.CategoricalAccuracy(name="accuracy"),
-            tfa.metrics.F1Score(num_classes=nb_classes, average='macro', name='f1_score')
-        ]
-        loss_func = tf.keras.losses.CategoricalCrossentropy()
-        # define loss function
-        model.compile(loss=loss_func, optimizer=keras.optimizers.Adam(learning_rate=self.lr),
-                      metrics=metrics)
-        # don't need to modify anything down below
-        reduce_lr = keras.callbacks.ReduceLROnPlateau(monitor='loss', factor=0.5, patience=50,
-                                                      min_lr=0.0001)
-        weight_format = 'epoch-{epoch:02d}-val_acc-{val_accuracy:.4f}-train_acc-{accuracy:.4f}-precision-{precision:.4f}-recall-{recall:.4f}.h5'
-        file_path = self.output_directory / weight_format
+        # # define the metrics.
+        # metrics = [
+        #     tf.keras.metrics.Precision(name='precision'),
+        #     tf.keras.metrics.Recall(name='recall'),
+        #     tf.keras.metrics.CategoricalAccuracy(name="accuracy"),
+        #     tfa.metrics.F1Score(num_classes=nb_classes, average='macro', name='f1_score')
+        # ]
+        # loss_func = tf.keras.losses.CategoricalCrossentropy()
+        # # define loss function
+        # model.compile(loss=loss_func, optimizer=keras.optimizers.Adam(learning_rate=self.lr),
+        #               metrics=metrics)
+        # # don't need to modify anything down below
+        # reduce_lr = keras.callbacks.ReduceLROnPlateau(monitor='loss', factor=0.5, patience=50,
+        #                                               min_lr=0.0001)
+        # weight_format = 'epoch-{epoch:02d}-val_acc-{val_accuracy:.4f}-train_acc-{accuracy:.4f}-precision-{precision:.4f}-recall-{recall:.4f}.h5'
+        # file_path = self.output_directory / weight_format
 
-        model_checkpoint = keras.callbacks.ModelCheckpoint(filepath=file_path, monitor='loss',
-                                                           save_best_only=False)
-        my_callback = TrainingCallback(self.output_directory, "Training")
-        self.callbacks = [reduce_lr, model_checkpoint, my_callback]
+        # model_checkpoint = keras.callbacks.ModelCheckpoint(filepath=file_path, monitor='loss',
+        #                                                    save_best_only=False)
+        # my_callback = TrainingCallback(self.output_directory, "Training")
+        # self.callbacks = [reduce_lr, model_checkpoint, my_callback]
 
         return model
 
@@ -170,14 +170,15 @@ class InceptionWithCL:
 
         return self.model
     
-    def fit_kd(self, train_data_generator, valid_data_generator, prev_model):
-        # remove the last layer of the model
-        gap_layer = self.model.layers[-2].output
-        output_layer = CosineLinear(in_features=gap_layer.shape[-1], 
-                                    out_features = self.nb_classes)(gap_layer)
-        output_layer = keras.layers.Activation('softmax')(output_layer)
-        
-        self.model = keras.models.Model(inputs=self.model.input, outputs=output_layer)
+    def fit_kd(self, train_data_generator, valid_data_generator, loaded_model = False): 
+        if not loaded_model:
+            # remove the last layer of the model
+            gap_layer = self.model.layers[-2].output
+            output_layer = CosineLinear(in_features=gap_layer.shape[-1], 
+                                        out_features = self.nb_classes)(gap_layer)
+            output_layer = keras.layers.Activation('softmax')(output_layer)
+            
+            self.model = keras.models.Model(inputs=self.model.input, outputs=output_layer)
         if not tf.test.is_built_with_cuda():
             raise Exception('error no gpu')
         
@@ -228,7 +229,8 @@ class InceptionWithCL:
 
             for x_val, y_val in valid_data_generator:
                 val_logits = self.model(x_val, training=False)
-                loss_value = my_kd_loss(y_true=y_val, y_pred=val_logits, inputs = x_val, teacher_model=prev_model)
+                # loss_value = my_kd_loss(y_true=y_val, y_pred=val_logits, inputs = x_val, teacher_model=prev_model)
+                loss_value = tf.keras.losses.categorical_crossentropy(y_batch, logits)
                 # update metrics
                 update_val_metrics(y_val, val_logits)
             logs[f'epoch:{epoch}'] = {
@@ -245,6 +247,7 @@ class InceptionWithCL:
             }
             self.on_epoch_end(epoch, logs)
         self.model.save(self.output_directory / 'last_model.hdf5')
+        self.logger.info(f'current weights saved at {self.output_directory /"last_model.hdf5"}')
         tf.keras.backend.clear_session()
         return self.model
     
