@@ -134,4 +134,31 @@ class Trainer:
 
     
     def ft_mtl(self):
-        pass
+        nb_epochs = self.experiment_config["training_epochs"]
+        verbose = self.experiment_config["verbose"]
+        # load data
+        dataloader = PrepareDataLoader(self.finetuning_config, self.experiment_config)
+        self.logger.info(f"Loading data ...")
+        train_dataloader, valid_dataloader  = dataloader.load_pretrain_data(labels = self.universal_label, model_type = "baseline")
+        if not self.output_dir.is_dir():
+            self.logger.warning(f"Parent directory {self.output_dir} not found. Creating directory")
+            self.output_dir.mkdir(parents=True, exist_ok=True)
+        nb_classes = len(self.universal_label)
+
+        input_shape =(3,1)
+        ## DO NOT SET BATCH SIZE HERE
+        model = inception.Classifier_INCEPTION(self.output_dir, input_shape, nb_classes,
+                                                                verbose=verbose, 
+                                                                build=True, 
+                                                                depth = 2,
+                                                                nb_epochs = nb_epochs,
+                                                                use_bottleneck = False,
+                                                                lr = self.learning_rate
+                                                                )
+        # load pretrained weights
+        if self.load_weights:
+                self.logger.info(f"Loading weights from {self.experiment_config['weights_file']}")
+                model.model.load_weights(self.experiment_config['weights_file'])
+        self.logger.info("---- Start training ----") 
+        model.fit(train_dataloader, valid_dataloader)
+        self.logger.info("---- End training ----")

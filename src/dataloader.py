@@ -157,7 +157,6 @@ class PrepareDataLoader():
             # simple combination strategy: need modificaiton later
             cl_dataloader_train = CLDataLoader(train_df, herd_df, self.experiment_config, self.universal_label)
             cl_dataloader_valid = DataLoader(valid_df, self.experiment_config, self.universal_label)
-            exit()
             return cl_dataloader_train, cl_dataloader_valid
         elif model_type == 'mtl':
             pass
